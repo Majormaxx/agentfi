@@ -1,0 +1,40 @@
+{
+  "name": "agentfi",
+  "version": "0.1.0",
+  "description": "DeFi execution gateway for autonomous AI agents on Stellar — monetized via x402 and MPP micropayments.",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "build": "tsc --project tsconfig.json",
+    "start": "node dist/server/index.js",
+    "mcp": "tsx mcp-server/index.ts",
+    "lint": "eslint 'server/**/*.ts' 'mcp-server/**/*.ts'"
+  },
+  "dependencies": {
+    "@defindex/sdk": "0.3.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "@soroswap/sdk": "0.4.0",
+    "@stellar/stellar-sdk": "15.0.1",
+    "@x402/core": "2.9.0",
+    "@x402/express": "2.9.0",
+    "@x402/stellar": "2.9.0",
+    "better-sqlite3": "12.8.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mppx": "0.5.10",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.2",
+    "@types/uuid": "^9.0.8",
+    "tsx": "4.21.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

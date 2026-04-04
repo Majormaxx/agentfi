@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.env
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+.next/
+dashboard/.next/
+dashboard/node_modules/
+mcp-server/dist/
+server/dist/
+*.js.map
+coverage/
