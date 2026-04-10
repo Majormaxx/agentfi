@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-earn:    #00C896;
+  --color-spend:   #F97316;
+  --color-bg:      #FFFFFF;
+  --color-surface: #F7F8FA;
+  --color-border:  #E5E7EB;
+  --color-text:    #111827;
+  --color-muted:   #6B7280;
+  --color-danger:  #EF4444;
+}
+
+.dark {
+  --color-bg:      #0F1117;
+  --color-surface: #1A1D27;
+  --color-border:  #2D3140;
+  --color-text:    #F3F4F6;
+  --color-muted:   #9CA3AF;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Financial number style — large balances */
+.balance-xl {
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.card {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.badge-sustaining {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #D1FAE5;
+  color: #065F46;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.dark .badge-sustaining {
+  background: #064E3B;
+  color: #6EE7B7;
+}
