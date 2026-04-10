@@ -22,7 +22,24 @@ const TYPE_COLOR: Record<ActivityItem["type"], string> = {
   warning:  "#F97316",
 };
 
-export function ActivityFeed({ limit = 3 }: { limit?: number }) {
+export function ActivityFeed({ limit = 3, loading }: { limit?: number; loading?: boolean }) {
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4">
+        {Array.from({ length: limit }).map((_, i) => (
+          <div key={i} className="flex items-start gap-3">
+            <div className="skeleton mt-1 w-2 h-2 rounded-full shrink-0" />
+            <div className="flex-1 flex flex-col gap-1.5">
+              <div className="skeleton h-3 w-full rounded" />
+              <div className="skeleton h-3 w-2/3 rounded" />
+            </div>
+            <div className="skeleton h-3 w-12 rounded shrink-0" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   const shown = ITEMS.slice(0, limit);
 
   return (

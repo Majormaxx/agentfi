@@ -1,8 +1,13 @@
+/**
+ * Vault routes — x402 payment gates applied globally in server/index.ts.
+ * Budget enforcement applied per-route via checkBudget middleware.
+ */
 import { Router, Request, Response } from "express";
-import { x402Gate } from "../middleware/x402";
-import { VaultService } from "../services/VaultService";
+import { checkBudget }   from "../middleware/budget";
+import { VaultService }  from "../services/VaultService";
 import { upsertVaultPosition } from "../db/database";
-import { v4 as uuidv4 } from "uuid";
+import { PRICES }         from "../config";
+import { v4 as uuidv4 }  from "uuid";
 
 const router = Router();
 const vaultService = new VaultService();
@@ -10,30 +15,29 @@ const vaultService = new VaultService();
 /**
  * POST /vault/deposit
  * Deposit stablecoins into a DeFindex yield vault.
- * Price: $0.001 USDC (x402)
+ * Payment: $0.001 USDC
  */
 router.post(
   "/vault/deposit",
-  x402Gate("vaultDeposit", "Deposit stablecoins into DeFindex yield vault"),
+  checkBudget(PRICES.vaultDeposit, "body"),
   async (req: Request, res: Response) => {
-    const { vaultId, amount, token, agentAddress, signedAuth } = req.body as {
-      vaultId: string;
-      amount: string;
-      token: string;
+    const { vaultId, amount, agentAddress } = req.body as {
+      vaultId:      string;
+      amount:       string;
+      token?:       string;
       agentAddress: string;
-      signedAuth: string;
     };
 
-    if (!vaultId || !amount || !token || !agentAddress || !signedAuth) {
+    if (!vaultId || !amount || !agentAddress) {
       res.status(400).json({
         error: "MISSING_PARAMS",
-        message: "vaultId, amount, token, agentAddress, and signedAuth are required",
+        message: "vaultId, amount, and agentAddress are required",
       });
       return;
     }
 
     try {
-      const result = await vaultService.deposit({ vaultId, amount, token, agentAddress, signedAuth });
+      const result = await vaultService.deposit({ vaultId, amount, agentAddress });
 
       upsertVaultPosition(
         uuidv4(),
@@ -47,41 +51,37 @@ router.post(
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Deposit failed";
-      if (message.includes("VAULT_PAUSED")) {
-        res.status(503).json({ error: "VAULT_PAUSED", message });
-      } else {
-        res.status(422).json({ error: "DEPOSIT_FAILED", message });
-      }
+      const status  = message.includes("VAULT_PAUSED") ? 503 : 422;
+      res.status(status).json({ error: status === 503 ? "VAULT_PAUSED" : "DEPOSIT_FAILED", message });
     }
   }
 );
 
 /**
  * POST /vault/withdraw
- * Redeem vault shares and receive underlying tokens plus accrued yield.
- * Price: $0.001 USDC (x402)
+ * Redeem vault shares and receive underlying tokens + accrued yield.
+ * Payment: $0.001 USDC
  */
 router.post(
   "/vault/withdraw",
-  x402Gate("vaultWithdraw", "Withdraw from DeFindex yield vault"),
+  checkBudget(PRICES.vaultWithdraw, "body"),
   async (req: Request, res: Response) => {
-    const { vaultId, shares, agentAddress, signedAuth } = req.body as {
-      vaultId: string;
-      shares: string;
+    const { vaultId, shares, agentAddress } = req.body as {
+      vaultId:      string;
+      shares:       string;
       agentAddress: string;
-      signedAuth: string;
     };
 
-    if (!vaultId || !shares || !agentAddress || !signedAuth) {
+    if (!vaultId || !shares || !agentAddress) {
       res.status(400).json({
         error: "MISSING_PARAMS",
-        message: "vaultId, shares, agentAddress, and signedAuth are required",
+        message: "vaultId, shares, and agentAddress are required",
       });
       return;
     }
 
     try {
-      const result = await vaultService.withdraw({ vaultId, shares, agentAddress, signedAuth });
+      const result = await vaultService.withdraw({ vaultId, shares, agentAddress });
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Withdrawal failed";
@@ -93,11 +93,11 @@ router.post(
 /**
  * GET /vault/apy
  * Query real-time APY, TVL, and utilization for a DeFindex vault.
- * Price: $0.0005 USDC (x402)
+ * Payment: $0.0005 USDC
  */
 router.get(
   "/vault/apy",
-  x402Gate("vaultApy", "Query real-time DeFindex vault APY"),
+  checkBudget(PRICES.vaultApy, "query"),
   async (req: Request, res: Response) => {
     const { vaultId } = req.query as { vaultId?: string };
 

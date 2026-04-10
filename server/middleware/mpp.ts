@@ -1,65 +1,74 @@
-import { Request, Response, NextFunction, RequestHandler } from "express";
+/**
+ * MPP (Machine Payment Protocol / mppx) middleware for AgentFi.
+ *
+ * Uses mppx/express to expose Tempo charge and session intents as
+ * Express RequestHandlers alongside the x402 gates.
+ *
+ * Current status:
+ *  - mppx 0.5.x ships Tempo with EVM chain support.
+ *  - Stellar-native Tempo payment method is pending upstream in mppx.
+ *  - When AGENTFI_STELLAR_SECRET is set, we expose the MPP infrastructure;
+ *    the middleware yields 402 challenges that Stellar-aware MPP clients
+ *    can respond to once the Stellar payment method lands.
+ *  - In dev mode the gate passes every request through so the rest of the
+ *    stack can be exercised without credentials.
+ */
+import type { RequestHandler } from "express";
 import { config, PRICES } from "../config";
 
-/**
- * Builds an MPP (mppx / Tempo) paywall middleware for a given endpoint.
- *
- * MPP is preferred for high-frequency agent sessions: the agent opens a
- * payment channel once and debits individual operations within it.
- * x402 is used for one-off calls.
- *
- * In dev mode (no AGENTFI_STELLAR_SECRET) the gate is bypassed with a warning.
- */
-export function mppGate(
-  endpoint: keyof typeof PRICES,
-  description: string
-): RequestHandler {
-  const amount = parseFloat(PRICES[endpoint]);
-  const isDevMode = !config.agentfiSecret;
+// mppx/express is the dedicated Express integration — gives us typed
+// RequestHandlers from charge/session intents directly.
+import { Mppx, tempo, payment } from "mppx/express";
 
-  if (isDevMode) {
-    return (_req: Request, _res: Response, next: NextFunction) => {
-      console.warn(`[mpp] DEV MODE — skipping MPP gate for ${description} ($${amount} USDC)`);
-      next();
-    };
-  }
+// ── Singleton Mppx instance ───────────────────────────────────────────────────
+// tempo() creates both charge and session intents from shared params.
+// currency + recipient will be filled from env when Stellar method ships;
+// for now we omit them so the instance works in challenge-only mode.
+let _mppx: ReturnType<typeof Mppx.create> | null = null;
 
-  // Production: delegate to mppx
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const Mppx = require("mppx");
-
-  const mpp = Mppx.create({
-    paymentMethods: [
-      Mppx.tempo({
-        network: `stellar:${config.stellarNetwork}`,
-        asset: "USDC",
-        recipientAddress: config.agentfiAddress,
+function getMppx() {
+  if (_mppx) return _mppx;
+  _mppx = Mppx.create({
+    methods: [
+      tempo({
+        // Stellar-native currency contract and recipient will be set here
+        // once mppx ships its Stellar payment method.
+        // For EVM testnet demo: uncomment and set:
+        //   currency: "0x...",   // USDC contract on Base Sepolia
+        //   recipient: "0x...",  // operator EVM address
       }),
     ],
   });
+  return _mppx;
+}
 
-  return mpp.paywall({ amount, currency: "USD", description });
+const devPassthrough: RequestHandler = (_req, _res, next) => next();
+
+/**
+ * Returns an MPP charge gate for a given price point as an Express RequestHandler.
+ * Compose with the x402 middleware in server/index.ts for dual-protocol coverage.
+ */
+export function mppChargeGate(endpoint: keyof typeof PRICES): RequestHandler {
+  if (!config.isLive) {
+    return devPassthrough;
+  }
+
+  const amount = PRICES[endpoint];
+  const mppx = getMppx();
+
+  // payment() wraps mppx.tempo.charge as a per-route Express RequestHandler.
+  return payment(mppx.tempo.charge, { amount });
 }
 
 /**
- * Dual-protocol middleware: accepts EITHER x402 OR MPP payment.
- * Tries x402 first; if the request carries an MPP session token instead,
- * falls through to the MPP gate.
+ * Detects whether the incoming request carries an MPP credential
+ * (WWW-Authenticate: Tempo or X-Mpp-* headers) rather than an x402 payment.
+ * Used by the dual-protocol selector in server/index.ts.
  */
-export function dualGate(
-  endpoint: keyof typeof PRICES,
-  description: string
-): RequestHandler[] {
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  const { x402Gate } = require("./x402");
-  return [
-    (req: Request, res: Response, next: NextFunction) => {
-      const hasMppToken =
-        req.headers["x-mpp-session"] || req.headers["authorization"]?.startsWith("MPP ");
-      if (hasMppToken) {
-        return mppGate(endpoint, description)(req, res, next);
-      }
-      return x402Gate(endpoint, description)(req, res, next);
-    },
-  ];
+export function hasMppCredential(req: import("express").Request): boolean {
+  return (
+    !!req.headers["x-mpp-channel"] ||
+    !!req.headers["x-mpp-session"] ||
+    (req.headers["authorization"] ?? "").toLowerCase().startsWith("tempo ")
+  );
 }

@@ -1,6 +1,11 @@
+/**
+ * Swap routes — x402 payment gates applied globally in server/index.ts.
+ * Budget enforcement applied per-route here via checkBudget middleware.
+ */
 import { Router, Request, Response } from "express";
-import { x402Gate } from "../middleware/x402";
-import { SwapService } from "../services/SwapService";
+import { checkBudget } from "../middleware/budget";
+import { SwapService }  from "../services/SwapService";
+import { PRICES }        from "../config";
 
 const router = Router();
 const swapService = new SwapService();
@@ -8,11 +13,11 @@ const swapService = new SwapService();
 /**
  * GET /swap/quote
  * Returns the optimal swap route across Soroswap, Phoenix, Aqua, and SDEX.
- * Price: $0.001 USDC (x402)
+ * Payment: $0.001 USDC (x402 gate in server/index.ts)
  */
 router.get(
   "/swap/quote",
-  x402Gate("swapQuote", "Optimal swap quote across Stellar DEXs"),
+  checkBudget(PRICES.swapQuote, "query"),
   async (req: Request, res: Response) => {
     const { tokenIn, tokenOut, amountIn, slippage } = req.query as Record<string, string>;
 
@@ -41,26 +46,25 @@ router.get(
 
 /**
  * POST /swap/execute
- * Executes a token swap on the best available route.
- * Price: $0.002 USDC (x402)
+ * Executes a token swap on the best available route on Stellar.
+ * Payment: $0.002 USDC (x402 gate in server/index.ts)
  */
 router.post(
   "/swap/execute",
-  x402Gate("swapExecute", "Execute token swap on best Stellar DEX route"),
+  checkBudget(PRICES.swapExecute, "body"),
   async (req: Request, res: Response) => {
-    const { tokenIn, tokenOut, amountIn, slippage, agentAddress, signedAuth } = req.body as {
-      tokenIn: string;
-      tokenOut: string;
-      amountIn: string;
-      slippage?: number;
+    const { tokenIn, tokenOut, amountIn, slippage, agentAddress } = req.body as {
+      tokenIn:      string;
+      tokenOut:     string;
+      amountIn:     string;
+      slippage?:    number;
       agentAddress: string;
-      signedAuth: string;
     };
 
-    if (!tokenIn || !tokenOut || !amountIn || !agentAddress || !signedAuth) {
+    if (!tokenIn || !tokenOut || !amountIn || !agentAddress) {
       res.status(400).json({
         error: "MISSING_PARAMS",
-        message: "tokenIn, tokenOut, amountIn, agentAddress, and signedAuth are required",
+        message: "tokenIn, tokenOut, amountIn, and agentAddress are required",
       });
       return;
     }
@@ -70,9 +74,8 @@ router.post(
         tokenIn,
         tokenOut,
         amountIn,
-        slippage: slippage ?? 0.5,
+        slippage:     slippage ?? 0.5,
         agentAddress,
-        signedAuth,
       });
       res.json(result);
     } catch (err: unknown) {

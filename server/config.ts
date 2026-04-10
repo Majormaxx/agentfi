@@ -1,12 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-function required(key: string): string {
-  const val = process.env[key];
-  if (!val) throw new Error(`Missing required env var: ${key}`);
-  return val;
-}
-
 function optional(key: string, fallback: string): string {
   return process.env[key] ?? fallback;
 }
@@ -16,32 +10,44 @@ export const config = {
   sorobanRpcUrl: optional("SOROBAN_RPC_URL", "https://soroban-testnet.stellar.org"),
   horizonUrl: optional("STELLAR_HORIZON_URL", "https://horizon-testnet.stellar.org"),
 
-  agentfiAddress: optional("AGENTFI_STELLAR_ADDRESS", "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"),
+  agentfiAddress: optional("AGENTFI_STELLAR_ADDRESS", ""),
   agentfiSecret: optional("AGENTFI_STELLAR_SECRET", ""),
 
   x402FacilitatorUrl: optional("X402_FACILITATOR_URL", "https://channels.openzeppelin.com/x402/testnet"),
 
+  soroswapApiKey: optional("SOROSWAP_API_KEY", ""),
+  defindexApiKey: optional("DEFINDEX_API_KEY", ""),
+
+  // Real Soroban contract addresses
   usdcContractId: optional(
     "USDC_CONTRACT_ID",
-    "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+    // Circle USDC on Stellar testnet
+    "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA"
   ),
 
   vaults: {
-    usdc: optional("DEFINDEX_VAULT_USDC_ID", "defindex-blend-usdc-v1"),
-    xlm: optional("DEFINDEX_VAULT_XLM_ID", "defindex-blend-xlm-v1"),
+    usdcAddress: optional("DEFINDEX_VAULT_USDC_ADDRESS", ""),
+    xlmAddress:  optional("DEFINDEX_VAULT_XLM_ADDRESS", ""),
+    // Human-readable IDs used in API responses
+    usdcId: "defindex-blend-usdc-v1",
+    xlmId:  "defindex-blend-xlm-v1",
   },
-
-  soroswapRouterId: optional(
-    "SOROSWAP_ROUTER_ID",
-    "CB2GZK2TZ55PXRFVSXZQ3FGKD2FIWH3PKX5IZXB7Q4PW53L37K7MNFP"
-  ),
 
   port: parseInt(optional("PORT", "3001"), 10),
   databasePath: optional("DATABASE_PATH", "./agentfi.db"),
   agentfiBaseUrl: optional("AGENTFI_BASE_URL", "http://localhost:3001"),
+
+  /** True when all credentials are present — enables real on-chain settlement */
+  get isLive(): boolean {
+    return !!(
+      this.agentfiSecret &&
+      this.soroswapApiKey &&
+      this.defindexApiKey
+    );
+  },
 } as const;
 
-// Pricing (in USDC)
+// Pricing (USDC string values consumed by x402 middleware)
 export const PRICES = {
   swapQuote: "0.001",
   swapExecute: "0.002",
@@ -51,5 +57,9 @@ export const PRICES = {
   rebalance: "0.003",
   positions: "0.0005",
 } as const;
+
+// CAIP-2 network identifier for x402 Stellar integration
+export const STELLAR_NETWORK_CAIP2 =
+  config.stellarNetwork === "mainnet" ? "stellar:pubnet" : "stellar:testnet";
 
 export const AGENTFI_VERSION = "0.1.0";

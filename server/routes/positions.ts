@@ -1,17 +1,19 @@
+/**
+ * GET /positions
+ * Real Horizon balance queries + SQLite vault position snapshot.
+ * Payment: $0.0005 USDC
+ */
 import { Router, Request, Response } from "express";
-import { x402Gate } from "../middleware/x402";
+import { checkBudget }       from "../middleware/budget";
 import { getVaultPositions, getTotalFeesSpent } from "../db/database";
+import { getAccountBalances } from "../lib/stellar";
+import { PRICES }             from "../config";
 
 const router = Router();
 
-/**
- * GET /positions
- * Returns wallet balances, open vault positions, net yield, and total fees.
- * Price: $0.0005 USDC (x402)
- */
 router.get(
   "/positions",
-  x402Gate("positions", "Query agent portfolio positions and yield summary"),
+  checkBudget(PRICES.positions, "query"),
   async (req: Request, res: Response) => {
     const { agentAddress } = req.query as { agentAddress?: string };
 
@@ -21,22 +23,26 @@ router.get(
     }
 
     try {
+      // ── Real Horizon balance query ────────────────────────────────────────
+      let walletBalance = { USDC: "0", XLM: "0" };
+      try {
+        const balances   = await getAccountBalances(agentAddress);
+        walletBalance    = { USDC: balances.USDC, XLM: balances.XLM };
+      } catch {
+        // Account might not exist on testnet yet — return zeros rather than 500
+        walletBalance = { USDC: "0", XLM: "0" };
+      }
+
+      // ── SQLite vault positions ────────────────────────────────────────────
       const rows = getVaultPositions(agentAddress);
       const totalFeesSpent = getTotalFeesSpent(agentAddress);
 
-      // In production: query Horizon for wallet balances
-      // For demo: return plausible testnet balances
-      const walletBalance = {
-        USDC: "1500000000",
-        XLM: "5000000000",
-      };
-
       const vaultPositions = rows.map((row) => ({
-        vaultId: row["vault_id"],
-        shares: row["shares"],
-        currentValue: String(BigInt(row["shares"] as string) * BigInt(1003) / BigInt(1000)),
-        unrealizedYield: String(BigInt(row["shares"] as string) * BigInt(3) / BigInt(1000)),
-        depositedAt: row["deposited_at"],
+        vaultId:         row["vault_id"],
+        shares:          row["shares"],
+        currentValue:    String(BigInt(row["shares"] as string) * BigInt(1003) / BigInt(1000)),
+        unrealizedYield: String(BigInt(row["shares"] as string) * BigInt(3)    / BigInt(1000)),
+        depositedAt:     row["deposited_at"],
       }));
 
       const totalVaultValue = vaultPositions.reduce(
@@ -44,8 +50,10 @@ router.get(
         BigInt(0)
       );
 
+      // Approx XLM→USDC conversion at ~$0.10/XLM (for display only)
+      const xlmInUsdc = BigInt(walletBalance.XLM) / BigInt(10);
       const totalValueUSDC = String(
-        BigInt(walletBalance.USDC) + BigInt(walletBalance.XLM) / BigInt(4) + totalVaultValue
+        BigInt(walletBalance.USDC) + xlmInUsdc + totalVaultValue
       );
 
       const netYield = vaultPositions.reduce(
@@ -57,7 +65,7 @@ router.get(
         walletBalance,
         vaultPositions,
         totalValueUSDC,
-        netYield: String(netYield),
+        netYield:       String(netYield),
         totalFeesSpent: String(Math.round(totalFeesSpent * 1e7)),
       });
     } catch (err: unknown) {
