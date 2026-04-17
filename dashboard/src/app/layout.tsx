@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { DarkModeToggle } from "@/components/DarkModeToggle";
 import { ToastProvider }  from "@/components/Toast";
+import { Providers }      from "@/components/Providers";
+import { UserButton }     from "@/components/UserButton";
+import { BottomNav }      from "@/components/BottomNav";
 
 export const metadata: Metadata = {
   title: "AgentFi",
@@ -25,29 +28,30 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700&display=swap"
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
+        <Providers>
         <ToastProvider>
           <div className="min-h-screen flex flex-col">
             {/* Header */}
-            <header
-              className="flex items-center justify-between px-6 py-4 border-b sticky top-0 z-10"
-              style={{ background: "var(--color-bg)", borderColor: "var(--color-border)" }}
-            >
-              <span className="text-xl font-semibold tracking-tight">
-                Agent<span style={{ color: "var(--color-earn)" }}>Fi</span>
-              </span>
+            <header className="header-glass flex items-center justify-between px-5 py-3.5 border-b sticky top-0 z-10">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                  style={{ background: "var(--gradient-earn)" }}
+                >
+                  A
+                </div>
+                <span className="text-[17px] font-semibold tracking-tight">
+                  Agent<span style={{ color: "var(--color-earn)" }}>Fi</span>
+                </span>
+              </div>
               <div className="flex items-center gap-2">
                 <DarkModeToggle />
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold"
-                  style={{ background: "var(--color-earn)", color: "#fff" }}
-                >
-                  M
-                </div>
+                <UserButton />
               </div>
             </header>
 
@@ -57,30 +61,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </main>
 
             {/* Bottom nav */}
-            <nav
-              className="border-t sticky bottom-0 z-10"
-              style={{ background: "var(--color-bg)", borderColor: "var(--color-border)" }}
-            >
-              <div className="max-w-md mx-auto flex">
-                {[
-                  { href: "/",          label: "Home",      icon: "⌂" },
-                  { href: "/portfolio", label: "Portfolio", icon: "◈" },
-                  { href: "/limits",    label: "Limits",    icon: "⚙" },
-                ].map(({ href, label, icon }) => (
-                  <a
-                    key={href}
-                    href={href}
-                    className="flex-1 flex flex-col items-center py-3 text-xs gap-1 transition-colors hover:opacity-80"
-                    style={{ color: "var(--color-muted)" }}
-                  >
-                    <span className="text-lg leading-none">{icon}</span>
-                    {label}
-                  </a>
-                ))}
-              </div>
-            </nav>
+            <BottomNav />
           </div>
         </ToastProvider>
+        </Providers>
       </body>
     </html>
   );

@@ -1,5 +1,7 @@
 "use client";
 
+import { TrendingUp, TrendingDown } from "lucide-react";
+
 interface BalanceCardProps {
   label: string;
   value: string;
@@ -20,19 +22,32 @@ export function BalanceCard({ label, value, subLabel, color, prefix, loading }: 
     );
   }
 
+  const isPositive = prefix === "+";
+  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+
   return (
-    <div className="card flex flex-col gap-1">
-      <span className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--color-muted)" }}>
-        {label}
-      </span>
+    <div className="card flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--color-muted)" }}>
+          {label}
+        </span>
+        <div
+          className="w-6 h-6 rounded-lg flex items-center justify-center"
+          style={{ background: `${color}20` }}
+        >
+          <TrendIcon size={12} color={color} strokeWidth={2.5} />
+        </div>
+      </div>
+
       <span
-        className="text-2xl font-semibold"
+        className="text-2xl font-bold tracking-tight block"
         style={{ color: color ?? "var(--color-text)" }}
       >
         {prefix}{value}
       </span>
+
       {subLabel && (
-        <span className="text-xs" style={{ color: "var(--color-muted)" }}>
+        <span className="text-xs block" style={{ color: "var(--color-muted)" }}>
           {subLabel}
         </span>
       )}

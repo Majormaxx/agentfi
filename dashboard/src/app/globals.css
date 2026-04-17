@@ -11,6 +11,8 @@
   --color-text:    #111827;
   --color-muted:   #6B7280;
   --color-danger:  #EF4444;
+  --gradient-earn: linear-gradient(135deg, #00C896 0%, #00A8D4 100%);
+  --gradient-earn-soft: linear-gradient(135deg, rgba(0,200,150,0.15) 0%, rgba(0,168,212,0.08) 100%);
 }
 
 .dark {
@@ -26,46 +28,74 @@
 body {
   background-color: var(--color-bg);
   color: var(--color-text);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
-  transition: background-color 0.2s, color 0.2s;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
+/* ─── Glassmorphism header ─── */
+.header-glass {
+  background: var(--color-bg);
+  border-color: var(--color-border);
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+.dark .header-glass {
+  background: rgba(15, 17, 23, 0.85) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+/* ─── Balance display ─── */
 .balance-xl {
   font-size: 2.5rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.04em;
+  background: var(--gradient-earn);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
+/* ─── Card ─── */
 .card {
   background-color: var(--color-surface);
   border: 1px solid var(--color-border);
-  border-radius: 12px;
-  padding: 24px;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+.dark .card {
+  box-shadow: 0 1px 8px rgba(0, 0, 0, 0.25);
+}
+
+/* ─── Self-sustaining badge ─── */
 .badge-sustaining {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  background: #D1FAE5;
+  background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
   color: #065F46;
-  font-size: 0.75rem;
-  font-weight: 600;
-  padding: 4px 10px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 3px 10px;
   border-radius: 999px;
+  letter-spacing: 0.01em;
 }
 
 .dark .badge-sustaining {
-  background: #064E3B;
+  background: linear-gradient(135deg, #064E3B, #065F46);
   color: #6EE7B7;
 }
 
-/* Skeleton shimmer */
+/* ─── Skeleton shimmer ─── */
 @keyframes shimmer {
-  0%   { background-position: -400px 0; }
-  100% { background-position: 400px 0; }
+  0%   { background-position: -600px 0; }
+  100% { background-position: 600px 0; }
 }
 
 .skeleton {
@@ -73,17 +103,17 @@ body {
   background: linear-gradient(
     90deg,
     var(--color-border) 25%,
-    var(--color-surface) 50%,
+    color-mix(in srgb, var(--color-surface) 90%, var(--color-border)) 50%,
     var(--color-border) 75%
   );
-  background-size: 800px 100%;
-  animation: shimmer 1.4s infinite;
+  background-size: 1200px 100%;
+  animation: shimmer 1.6s infinite linear;
 }
 
-/* Toast */
+/* ─── Toast ─── */
 .toast-container {
   position: fixed;
-  bottom: 80px;
+  bottom: 90px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -95,22 +125,41 @@ body {
 }
 
 .toast {
-  padding: 10px 18px;
-  border-radius: 10px;
+  padding: 11px 20px;
+  border-radius: 12px;
   font-size: 0.875rem;
   font-weight: 500;
   color: #fff;
-  animation: toastIn 0.25s ease;
+  animation: toastIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
   pointer-events: auto;
   max-width: 320px;
   text-align: center;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
 }
 
 @keyframes toastIn {
-  from { opacity: 0; transform: translateY(12px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(16px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-.toast-success { background: var(--color-earn); }
+.toast-success { background: var(--gradient-earn); }
 .toast-warning { background: var(--color-spend); }
 .toast-error   { background: var(--color-danger); }
+
+/* ─── Live pulse (Tailwind animate-ping override for color) ─── */
+@keyframes ping-earn {
+  75%, 100% {
+    transform: scale(2);
+    opacity: 0;
+  }
+}
+
+/* ─── Page transitions ─── */
+main {
+  animation: fadeUp 0.2s ease-out;
+}
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}

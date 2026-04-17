@@ -1,12 +1,16 @@
 import express from "express";
 import cors from "cors";
-import { config } from "./config";
-import { buildX402Middleware } from "./middleware/x402";
-import healthRouter    from "./routes/health";
-import swapRouter      from "./routes/swap";
-import vaultRouter     from "./routes/vault";
-import positionsRouter from "./routes/positions";
-import strategyRouter  from "./routes/strategy";
+import { config } from "./config.js";
+import { buildX402Middleware } from "./middleware/x402.js";
+import { requireAuth } from "./middleware/auth.js";
+import healthRouter    from "./routes/health.js";
+import swapRouter      from "./routes/swap.js";
+import vaultRouter     from "./routes/vault.js";
+import positionsRouter from "./routes/positions.js";
+import strategyRouter  from "./routes/strategy.js";
+import activityRouter  from "./routes/activity.js";
+import agentRouter     from "./routes/agent.js";
+import { agentLoop }   from "./services/agentLoopInstance.js";
 
 const app = express();
 
@@ -19,11 +23,13 @@ app.use(express.json());
 app.use(buildX402Middleware());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use("/", healthRouter);
-app.use("/", swapRouter);
-app.use("/", vaultRouter);
-app.use("/", positionsRouter);
-app.use("/", strategyRouter);
+app.use("/", healthRouter);                    // public — no auth required
+app.use("/", requireAuth, swapRouter);
+app.use("/", requireAuth, vaultRouter);
+app.use("/", requireAuth, positionsRouter);
+app.use("/", requireAuth, strategyRouter);
+app.use("/", requireAuth, activityRouter);
+app.use("/", requireAuth, agentRouter);
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use(
@@ -39,6 +45,14 @@ app.listen(config.port, () => {
     `AgentFi server running on port ${config.port} ` +
     `[stellar-${config.stellarNetwork}] [mode: ${mode}]`
   );
+
+  // Start AI agent loop only if Groq key is configured
+  if (config.groqApiKey) {
+    agentLoop.start();
+    console.log("[AgentLoop] Groq agent started (llama-3.3-70b-versatile)");
+  } else {
+    console.warn("[AgentLoop] GROQ_API_KEY not set — agent loop disabled");
+  }
 });
 
 export default app;

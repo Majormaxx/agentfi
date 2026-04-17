@@ -1,131 +1,107 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect } from "react";
+import { usePrivy } from "@privy-io/react-auth";
+import { useRouter } from "next/navigation";
+import { UserCheck, Wallet, SlidersHorizontal, Zap } from "lucide-react";
 
 const STEPS = [
   {
     n: 1,
+    Icon: UserCheck,
     title: "Create your account",
     desc: "Email + Face ID or fingerprint. No passwords, no browser plugins.",
-    icon: "🔑",
   },
   {
     n: 2,
+    Icon: Wallet,
     title: "Fund your agent",
     desc: "Send dollars to get started. Your agent wallet is created behind the scenes.",
-    icon: "💵",
   },
   {
     n: 3,
+    Icon: SlidersHorizontal,
     title: "Set your limits",
     desc: "Choose a daily spending cap and pick which actions your agent can take.",
-    icon: "⚙️",
   },
   {
     n: 4,
+    Icon: Zap,
     title: "Turn it on",
     desc: "Your agent starts trading and earning. You stay in control, always.",
-    icon: "✅",
   },
 ];
 
 export default function SetupPage() {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
+  const { ready, authenticated, login } = usePrivy();
+  const router = useRouter();
 
-  const handleStart = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-    setLoading(true);
-    // Simulate passkey registration (Privy would handle this in production)
-    await new Promise((r) => setTimeout(r, 1500));
-    setDone(true);
-    setLoading(false);
-  };
+  useEffect(() => {
+    if (ready && authenticated) {
+      router.replace("/limits");
+    }
+  }, [ready, authenticated, router]);
 
-  if (done) {
-    return (
-      <div className="flex flex-col items-center justify-center gap-6 py-12 text-center">
-        <div className="text-5xl">🎉</div>
-        <h1 className="text-xl font-semibold">Account created</h1>
-        <p className="text-sm" style={{ color: "var(--color-muted)" }}>
-          Your agent wallet is ready. Set your limits and turn it on.
-        </p>
-        <a
-          href="/limits"
-          className="w-full py-3 rounded-xl font-medium text-sm text-center text-white"
-          style={{ background: "var(--color-earn)" }}
-        >
-          Set limits →
-        </a>
-      </div>
-    );
-  }
+  const loading = !ready;
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="text-center pt-4">
-        <h1 className="text-2xl font-semibold tracking-tight">Welcome to AgentFi</h1>
-        <p className="text-sm mt-2" style={{ color: "var(--color-muted)" }}>
-          Let your AI agent earn interest and trade — while you stay in control.
+      {/* Hero */}
+      <div className="text-center pt-6 pb-2">
+        <div
+          className="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-2xl font-bold mx-auto mb-4"
+          style={{ background: "var(--gradient-earn)" }}
+        >
+          A
+        </div>
+        <h1 className="text-2xl font-bold tracking-tight">Welcome to AgentFi</h1>
+        <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--color-muted)" }}>
+          Let your AI agent earn interest and trade —<br />while you stay in control.
         </p>
       </div>
 
       {/* Steps */}
       <div className="card flex flex-col gap-5">
-        {STEPS.map((step) => (
-          <div key={step.n} className="flex items-start gap-4">
+        {STEPS.map(({ n, Icon, title, desc }) => (
+          <div key={n} className="flex items-start gap-4">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-semibold shrink-0"
-              style={{ background: "var(--color-earn)", color: "#fff" }}
+              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+              style={{ background: "var(--gradient-earn-soft)", border: "1px solid rgba(0,200,150,0.2)" }}
             >
-              {step.n}
+              <Icon size={18} color="var(--color-earn)" strokeWidth={2} />
             </div>
-            <div>
-              <p className="text-sm font-semibold">{step.title}</p>
-              <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
-                {step.desc}
+            <div className="pt-0.5">
+              <p className="text-sm font-semibold">{title}</p>
+              <p className="text-xs mt-0.5 leading-relaxed" style={{ color: "var(--color-muted)" }}>
+                {desc}
               </p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Sign-up form */}
-      <form onSubmit={handleStart} className="flex flex-col gap-3">
-        <label className="text-sm font-medium">Email address</label>
-        <input
-          type="email"
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-          className="w-full px-4 py-3 rounded-xl text-sm outline-none"
-          style={{
-            background:  "var(--color-surface)",
-            border:      "1px solid var(--color-border)",
-            color:       "var(--color-text)",
-          }}
-        />
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-3 rounded-xl font-medium text-sm text-white transition-opacity"
-          style={{
-            background: "var(--color-earn)",
-            opacity:    loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? "Creating account…" : "Get Started with Face ID"}
-        </button>
-      </form>
+      <button
+        onClick={login}
+        disabled={loading}
+        className="w-full py-3.5 rounded-2xl font-semibold text-sm text-white transition-all duration-200 active:scale-[0.98]"
+        style={{
+          background: loading ? "var(--color-border)" : "var(--gradient-earn)",
+          opacity: loading ? 0.7 : 1,
+          boxShadow: loading ? "none" : "0 4px 20px rgba(0,200,150,0.35)",
+        }}
+      >
+        {loading ? "Loading…" : "Get Started"}
+      </button>
 
-      <p className="text-xs text-center" style={{ color: "var(--color-muted)" }}>
+      <p className="text-xs text-center pb-2" style={{ color: "var(--color-muted)" }}>
         Already have an account?{" "}
-        <a href="/" className="underline" style={{ color: "var(--color-earn)" }}>
+        <button
+          onClick={login}
+          className="font-semibold underline underline-offset-2 transition-opacity hover:opacity-70"
+          style={{ color: "var(--color-earn)" }}
+        >
           Sign in
-        </a>
+        </button>
       </p>
     </div>
   );

@@ -1,6 +1,4 @@
-import dotenv from "dotenv";
-dotenv.config();
-
+import "dotenv/config";
 function optional(key: string, fallback: string): string {
   return process.env[key] ?? fallback;
 }
@@ -13,10 +11,14 @@ export const config = {
   agentfiAddress: optional("AGENTFI_STELLAR_ADDRESS", ""),
   agentfiSecret: optional("AGENTFI_STELLAR_SECRET", ""),
 
+  privyAppId:     optional("PRIVY_APP_ID", ""),
+  privyAppSecret: optional("PRIVY_APP_SECRET", ""),
+
   x402FacilitatorUrl: optional("X402_FACILITATOR_URL", "https://channels.openzeppelin.com/x402/testnet"),
 
   soroswapApiKey: optional("SOROSWAP_API_KEY", ""),
   defindexApiKey: optional("DEFINDEX_API_KEY", ""),
+  groqApiKey:     optional("GROQ_API_KEY", ""),
 
   // Real Soroban contract addresses
   usdcContractId: optional(
@@ -34,7 +36,7 @@ export const config = {
   },
 
   port: parseInt(optional("PORT", "3001"), 10),
-  databasePath: optional("DATABASE_PATH", "./agentfi.db"),
+  databasePath: optional("DATABASE_PATH", "/tmp/agentfi.db"),
   agentfiBaseUrl: optional("AGENTFI_BASE_URL", "http://localhost:3001"),
 
   /** True when all credentials are present — enables real on-chain settlement */
@@ -59,7 +61,8 @@ export const PRICES = {
 } as const;
 
 // CAIP-2 network identifier for x402 Stellar integration
-export const STELLAR_NETWORK_CAIP2 =
+// Typed as the template literal `${string}:${string}` that x402's Network type requires.
+export const STELLAR_NETWORK_CAIP2: `${string}:${string}` =
   config.stellarNetwork === "mainnet" ? "stellar:pubnet" : "stellar:testnet";
 
 export const AGENTFI_VERSION = "0.1.0";
