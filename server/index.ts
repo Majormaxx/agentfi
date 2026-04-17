@@ -23,13 +23,13 @@ app.use(express.json());
 app.use(buildX402Middleware());
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use("/", healthRouter);                    // public — no auth required
+app.use("/", healthRouter);
+app.use("/", positionsRouter);   // public — dashboard reads
+app.use("/", activityRouter);    // public — dashboard reads
+app.use("/", agentRouter);       // public — dashboard control
 app.use("/", requireAuth, swapRouter);
 app.use("/", requireAuth, vaultRouter);
-app.use("/", requireAuth, positionsRouter);
 app.use("/", requireAuth, strategyRouter);
-app.use("/", requireAuth, activityRouter);
-app.use("/", requireAuth, agentRouter);
 
 // ── Global error handler ──────────────────────────────────────────────────────
 app.use(

@@ -3,10 +3,10 @@
  * Budget enforcement applied per-route via checkBudget middleware.
  */
 import { Router, Request, Response } from "express";
-import { checkBudget }   from "../middleware/budget";
-import { VaultService }  from "../services/VaultService";
-import { upsertVaultPosition } from "../db/database";
-import { PRICES }         from "../config";
+import { checkBudget }   from "../middleware/budget.js";
+import { VaultService }  from "../services/VaultService.js";
+import { upsertVaultPosition, recordTransaction } from "../db/database.js";
+import { PRICES }         from "../config.js";
 import { v4 as uuidv4 }  from "uuid";
 
 const router = Router();
@@ -39,14 +39,8 @@ router.post(
     try {
       const result = await vaultService.deposit({ vaultId, amount, agentAddress });
 
-      upsertVaultPosition(
-        uuidv4(),
-        agentAddress,
-        vaultId,
-        result.sharesReceived,
-        amount,
-        parseFloat(result.currentAPY)
-      );
+      upsertVaultPosition(uuidv4(), agentAddress, vaultId, result.sharesReceived, amount, parseFloat(result.currentAPY));
+      recordTransaction(uuidv4(), agentAddress, "/vault/deposit", "x402", parseFloat(PRICES.vaultDeposit), result.txHash, undefined, req.body, result);
 
       res.json(result);
     } catch (err: unknown) {
@@ -82,6 +76,7 @@ router.post(
 
     try {
       const result = await vaultService.withdraw({ vaultId, shares, agentAddress });
+      recordTransaction(uuidv4(), agentAddress, "/vault/withdraw", "x402", parseFloat(PRICES.vaultWithdraw), result.txHash, undefined, req.body, result);
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Withdrawal failed";

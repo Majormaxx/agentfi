@@ -1,10 +1,6 @@
 /**
  * SwapService — aggregates quotes across Soroswap, Phoenix, Aqua, and SDEX,
  * then executes swaps on-chain via @soroswap/sdk.
- *
- * Live mode  (SOROSWAP_API_KEY set): calls the real Soroswap API, signs with
- *   AGENTFI_STELLAR_SECRET, and submits to Stellar.
- * Dev mode   (no API key): returns plausible mock data.
  */
 import {
   SoroswapSDK,
@@ -13,8 +9,8 @@ import {
   TradeType,
 } from "@soroswap/sdk";
 import type { QuoteResponse } from "@soroswap/sdk";
-import { config } from "../config";
-import { signXdr } from "../lib/stellar";
+import { config } from "../config.js";
+import { signXdr } from "../lib/stellar.js";
 
 // ── Token helpers ─────────────────────────────────────────────────────────────
 
@@ -88,8 +84,6 @@ export class SwapService {
   }
 
   async quote(req: SwapQuoteRequest): Promise<SwapQuoteResult> {
-    if (!config.isLive) return this.mockQuote(req);
-
     const sdk = this.getSDK();
     const sdkQuote = await sdk.quote({
       assetIn:    toSoroswapAsset(req.tokenIn),
@@ -109,8 +103,6 @@ export class SwapService {
   }
 
   async execute(req: SwapExecuteRequest): Promise<SwapExecuteResult> {
-    if (!config.isLive) return this.mockExecute(req);
-
     const sdk = this.getSDK();
 
     // 1. Get best quote
@@ -166,11 +158,11 @@ export class SwapService {
     tokenOut: string,
     slippagePct: number
   ): SwapQuoteResult {
-    const amountOut     = q.amountOut.toString();
+    const amountOut      = q.amountOut.toString();
     const slippageFactor = 1 - slippagePct / 100;
-    const minAmountOut  = String(BigInt(Math.floor(Number(q.amountOut) * slippageFactor)));
-    const bestProtocol  = q.routePlan.length > 0 ? q.routePlan[0].swapInfo.protocol : "soroswap";
-    const path          = q.routePlan.length > 0
+    const minAmountOut   = String(BigInt(Math.floor(Number(q.amountOut) * slippageFactor)));
+    const bestProtocol   = q.routePlan.length > 0 ? q.routePlan[0].swapInfo.protocol : "soroswap";
+    const path           = q.routePlan.length > 0
       ? q.routePlan[0].swapInfo.path
       : [tokenIn.split(":")[0], tokenOut.split(":")[0]];
 
@@ -190,49 +182,5 @@ export class SwapService {
       })),
       expiresAt: new Date(Date.now() + 30_000).toISOString(),
     };
-  }
-
-  // ── Dev-mode mocks ─────────────────────────────────────────────────────────
-
-  private mockQuote(req: SwapQuoteRequest): SwapQuoteResult {
-    const base           = BigInt(req.amountIn) * BigInt(234);
-    const slippageFactor = 1 - req.slippage / 100;
-    const amountOut      = String(base);
-    const minAmountOut   = String(BigInt(Math.floor(Number(base) * slippageFactor)));
-
-    return {
-      bestRoute: {
-        protocol:     "soroswap",
-        path:         [req.tokenIn.split(":")[0], req.tokenOut.split(":")[0]],
-        amountOut,
-        priceImpact:  "0.12",
-        minAmountOut,
-        fee:          "0.003",
-      },
-      alternatives: [
-        { protocol: "phoenix", amountOut: String(base * BigInt(999) / BigInt(1000)), priceImpact: "0.15" },
-        { protocol: "aqua",    amountOut: String(base * BigInt(997) / BigInt(1000)), priceImpact: "0.18" },
-        { protocol: "sdex",    amountOut: String(base * BigInt(995) / BigInt(1000)), priceImpact: "0.22" },
-      ],
-      expiresAt: new Date(Date.now() + 30_000).toISOString(),
-    };
-  }
-
-  private mockExecute(req: SwapExecuteRequest): SwapExecuteResult {
-    const quote  = this.mockQuote(req);
-    const txHash = this.deterministicHash(req.agentAddress + req.amountIn);
-    return {
-      txHash,
-      amountOut:          quote.bestRoute.amountOut,
-      protocol:           "soroswap",
-      settledAt:          new Date().toISOString(),
-      stellarExplorerUrl: `https://stellar.expert/explorer/${config.stellarNetwork}/tx/${txHash}`,
-    };
-  }
-
-  private deterministicHash(seed: string): string {
-    let h = 0;
-    for (let i = 0; i < seed.length; i++) h = ((h << 5) - h + seed.charCodeAt(i)) | 0;
-    return Math.abs(h).toString(16).padStart(8, "0") + Date.now().toString(16) + "deadbeef1234";
   }
 }

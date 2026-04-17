@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express";
-import { config, PRICES, AGENTFI_VERSION } from "../config";
+import { config, PRICES, AGENTFI_VERSION } from "../config.js";
 
 const router = Router();
 

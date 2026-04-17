@@ -9,7 +9,7 @@
  * developers can test business logic without a funded wallet.
  */
 import { RequestHandler } from "express";
-import { config, PRICES, STELLAR_NETWORK_CAIP2 } from "../config";
+import { config, PRICES, STELLAR_NETWORK_CAIP2 } from "../config.js";
 import { paymentMiddleware, x402ResourceServer } from "@x402/express";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { ExactStellarScheme } from "@x402/stellar/exact/server";

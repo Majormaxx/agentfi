@@ -3,9 +3,11 @@
  * Budget enforcement applied per-route here via checkBudget middleware.
  */
 import { Router, Request, Response } from "express";
-import { checkBudget } from "../middleware/budget";
-import { SwapService }  from "../services/SwapService";
-import { PRICES }        from "../config";
+import { v4 as uuidv4 } from "uuid";
+import { checkBudget } from "../middleware/budget.js";
+import { recordTransaction } from "../db/database.js";
+import { SwapService }  from "../services/SwapService.js";
+import { PRICES }        from "../config.js";
 
 const router = Router();
 const swapService = new SwapService();
@@ -29,6 +31,7 @@ router.get(
       return;
     }
 
+    const agentAddress = req.query.agentAddress as string | undefined;
     try {
       const result = await swapService.quote({
         tokenIn,
@@ -36,6 +39,9 @@ router.get(
         amountIn,
         slippage: parseFloat(slippage ?? "0.5"),
       });
+      if (agentAddress) {
+        recordTransaction(uuidv4(), agentAddress, "/swap/quote", "x402", parseFloat(PRICES.swapQuote), undefined, undefined, { tokenIn, tokenOut, amountIn }, result);
+      }
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Quote failed";
@@ -77,6 +83,7 @@ router.post(
         slippage:     slippage ?? 0.5,
         agentAddress,
       });
+      recordTransaction(uuidv4(), agentAddress, "/swap/execute", "x402", parseFloat(PRICES.swapExecute), result.txHash, undefined, req.body, result);
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Swap failed";

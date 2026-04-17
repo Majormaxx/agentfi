@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
-import { config } from "../config";
+import { config } from "../config.js";
 
 let _db: Database.Database | null = null;
 
@@ -70,10 +70,10 @@ export function upsertVaultPosition(
   `).run(id, agentAddress, vaultId, shares, depositedAmount, currentApy ?? null);
 }
 
-export function getVaultPositions(agentAddress: string): Database.RowObject[] {
+export function getVaultPositions(agentAddress: string): Record<string, unknown>[] {
   return getDb()
     .prepare("SELECT * FROM vault_positions WHERE agent_address = ?")
-    .all(agentAddress);
+    .all(agentAddress) as Record<string, unknown>[];
 }
 
 export function getTotalFeesSpent(agentAddress: string): number {
@@ -81,4 +81,35 @@ export function getTotalFeesSpent(agentAddress: string): number {
     .prepare("SELECT COALESCE(SUM(fee_paid_usdc), 0) AS total FROM transactions WHERE agent_address = ? AND status = 'settled'")
     .get(agentAddress) as { total: number };
   return row.total;
+}
+
+export interface ActivityRow {
+  id:               string;
+  agent_address:    string;
+  endpoint:         string;
+  payment_protocol: string;
+  fee_paid_usdc:    number;
+  tx_hash:          string | null;
+  status:           string;
+  created_at:       string;
+}
+
+export function getRecentActivity(agentAddress: string, limit = 20): ActivityRow[] {
+  return getDb()
+    .prepare(
+      "SELECT id, agent_address, endpoint, payment_protocol, fee_paid_usdc, tx_hash, status, created_at " +
+      "FROM transactions WHERE agent_address = ? ORDER BY created_at DESC LIMIT ?"
+    )
+    .all(agentAddress, limit) as ActivityRow[];
+}
+
+export function getEarnSpendSummary(agentAddress: string, days = 7): { earned_usdc: number; spent_usdc: number }[] {
+  // Returns one row with total fees spent over `days` days (earn is tracked separately via vault positions).
+  return getDb()
+    .prepare(
+      "SELECT COALESCE(SUM(fee_paid_usdc), 0) AS spent_usdc, 0 AS earned_usdc " +
+      "FROM transactions WHERE agent_address = ? AND status = 'settled' " +
+      "AND created_at >= datetime('now', ?)"
+    )
+    .all(agentAddress, `-${days} days`) as { earned_usdc: number; spent_usdc: number }[];
 }

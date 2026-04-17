@@ -4,10 +4,10 @@
  * Payment: $0.0005 USDC
  */
 import { Router, Request, Response } from "express";
-import { checkBudget }       from "../middleware/budget";
-import { getVaultPositions, getTotalFeesSpent } from "../db/database";
-import { getAccountBalances } from "../lib/stellar";
-import { PRICES }             from "../config";
+import { checkBudget }       from "../middleware/budget.js";
+import { getVaultPositions, getTotalFeesSpent } from "../db/database.js";
+import { getAccountBalances } from "../lib/stellar.js";
+import { PRICES }             from "../config.js";
 
 const router = Router();
 

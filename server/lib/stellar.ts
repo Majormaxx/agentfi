@@ -11,7 +11,7 @@ import {
   Networks,
 } from "@stellar/stellar-sdk";
 import { Horizon } from "@stellar/stellar-sdk";
-import { config } from "../config";
+import { config } from "../config.js";
 
 // ── Network passphrase ────────────────────────────────────────────────────────
 export function getNetworkPassphrase(): string {

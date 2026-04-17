@@ -1,5 +1,5 @@
-import { VaultService } from "./VaultService";
-import { config } from "../config";
+import { VaultService } from "./VaultService.js";
+import { config } from "../config.js";
 
 export type RebalanceAction = "compound" | "shift";
 

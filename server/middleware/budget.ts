@@ -9,7 +9,7 @@
  *   router.post("/swap/execute", x402Gate, checkBudget("0.002"), handler)
  */
 import { Request, Response, NextFunction } from "express";
-import { getDb } from "../db/database";
+import { getDb } from "../db/database.js";
 
 interface AgentBudgetRow {
   agent_address:    string;

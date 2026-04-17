@@ -1,8 +1,10 @@
 import { Router, Request, Response } from "express";
-import { checkBudget }      from "../middleware/budget";
-import { RebalanceService } from "../services/RebalanceService";
-import type { RebalanceAction } from "../services/RebalanceService";
-import { PRICES }            from "../config";
+import { v4 as uuidv4 } from "uuid";
+import { checkBudget }      from "../middleware/budget.js";
+import { recordTransaction } from "../db/database.js";
+import { RebalanceService } from "../services/RebalanceService.js";
+import type { RebalanceAction } from "../services/RebalanceService.js";
+import { PRICES }            from "../config.js";
 
 const router = Router();
 const rebalanceService = new RebalanceService();
@@ -53,6 +55,7 @@ router.post(
         targetVault,
         amount,
       });
+      recordTransaction(uuidv4(), agentAddress, "/strategy/rebalance", "x402", parseFloat(PRICES.rebalance), result.txHash, undefined, req.body, result);
       res.json(result);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Rebalance failed";
