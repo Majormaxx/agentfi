@@ -38,3 +38,15 @@ CREATE TABLE IF NOT EXISTS agent_budgets (
   spent_today_usdc REAL NOT NULL DEFAULT 0.0,
   last_reset DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS activity_log (
+  id TEXT PRIMARY KEY,
+  agent_address TEXT NOT NULL,
+  type TEXT NOT NULL,
+  message TEXT NOT NULL,
+  amount_usdc REAL,
+  tx_hash TEXT,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_log_agent ON activity_log(agent_address);
