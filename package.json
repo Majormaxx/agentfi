@@ -13,6 +13,7 @@
   "dependencies": {
     "@defindex/sdk": "0.3.0",
     "@modelcontextprotocol/sdk": "1.29.0",
+    "@privy-io/server-auth": "^1.32.5",
     "@soroswap/sdk": "0.4.0",
     "@stellar/stellar-sdk": "15.0.1",
     "@x402/core": "2.9.0",
@@ -22,7 +23,9 @@
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
+    "groq-sdk": "^1.1.2",
     "mppx": "0.5.10",
+    "tsx": "4.21.0",
     "uuid": "^9.0.1"
   },
   "devDependencies": {
@@ -31,7 +34,6 @@
     "@types/express": "^4.17.21",
     "@types/node": "^20.14.2",
     "@types/uuid": "^9.0.8",
-    "tsx": "4.21.0",
     "typescript": "5.9.3"
   },
   "engines": {

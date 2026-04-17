@@ -4,8 +4,8 @@ services:
     runtime: node
     region: oregon
     plan: free
-    buildCommand: npm install --legacy-peer-deps && npm run build
-    startCommand: npm start
+    buildCommand: npm install --legacy-peer-deps
+    startCommand: node_modules/.bin/tsx server/index.ts
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
