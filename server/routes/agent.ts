@@ -4,9 +4,18 @@
  * POST /agent/tick    — trigger one decision cycle immediately
  */
 import { Router, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import { agentLoop } from "../services/agentLoopInstance.js";
 
 const router = Router();
+
+const tickLimiter = rateLimit({
+  windowMs: 30_000,
+  max: 1,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "RATE_LIMITED", message: "Only 1 tick per 30 seconds per IP" },
+});
 
 router.get("/agent/status", (_req: Request, res: Response) => {
   res.json({
@@ -17,7 +26,7 @@ router.get("/agent/status", (_req: Request, res: Response) => {
   });
 });
 
-router.post("/agent/tick", async (_req: Request, res: Response) => {
+router.post("/agent/tick", tickLimiter, async (_req: Request, res: Response) => {
   try {
     const result = await agentLoop.tick();
     res.json(result);
