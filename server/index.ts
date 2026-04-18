@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Router } from "express";
 import cors from "cors";
 import { config } from "./config.js";
 import { buildX402Middleware } from "./middleware/x402.js";
@@ -10,7 +10,21 @@ import positionsRouter from "./routes/positions.js";
 import strategyRouter  from "./routes/strategy.js";
 import activityRouter  from "./routes/activity.js";
 import agentRouter     from "./routes/agent.js";
+import { VaultService } from "./services/VaultService.js";
 import { agentLoop }   from "./services/agentLoopInstance.js";
+
+// Public read-only vault APY endpoint (no auth, no x402)
+const vaultApyRouter = Router();
+const _vaultService = new VaultService();
+vaultApyRouter.get("/vault/apy", async (req, res) => {
+  const { vaultId } = req.query as { vaultId?: string };
+  if (!vaultId) { res.status(400).json({ error: "MISSING_PARAMS", message: "vaultId is required" }); return; }
+  try {
+    res.json(await _vaultService.getApy(vaultId));
+  } catch (err: unknown) {
+    res.status(404).json({ error: "VAULT_NOT_FOUND", message: err instanceof Error ? err.message : "APY query failed" });
+  }
+});
 
 const app = express();
 
@@ -27,6 +41,7 @@ app.use("/", healthRouter);
 app.use("/", positionsRouter);   // public — dashboard reads
 app.use("/", activityRouter);    // public — dashboard reads
 app.use("/", agentRouter);       // public — dashboard control
+app.use("/", vaultApyRouter);    // public — dashboard reads vault APY
 app.use("/", requireAuth, swapRouter);
 app.use("/", requireAuth, vaultRouter);
 app.use("/", requireAuth, strategyRouter);
