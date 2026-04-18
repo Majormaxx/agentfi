@@ -26,10 +26,11 @@ router.get(
       // ── Real Horizon balance query ────────────────────────────────────────
       let walletBalance = { USDC: "0", XLM: "0" };
       try {
-        const balances   = await getAccountBalances(agentAddress);
-        walletBalance    = { USDC: balances.USDC, XLM: balances.XLM };
+        const balances = await getAccountBalances(agentAddress);
+        // getAccountBalances returns stroops — convert to human-readable decimals
+        const fromStroops = (s: string) => (parseInt(s) / 1e7).toFixed(7);
+        walletBalance = { USDC: fromStroops(balances.USDC), XLM: fromStroops(balances.XLM) };
       } catch {
-        // Account might not exist on testnet yet — return zeros rather than 500
         walletBalance = { USDC: "0", XLM: "0" };
       }
 
@@ -37,36 +38,31 @@ router.get(
       const rows = getVaultPositions(agentAddress);
       const totalFeesSpent = getTotalFeesSpent(agentAddress);
 
-      const vaultPositions = rows.map((row) => ({
-        vaultId:         row["vault_id"],
-        shares:          row["shares"],
-        currentValue:    String(BigInt(row["shares"] as string) * BigInt(1003) / BigInt(1000)),
-        unrealizedYield: String(BigInt(row["shares"] as string) * BigInt(3)    / BigInt(1000)),
-        depositedAt:     row["deposited_at"],
-      }));
+      const vaultPositions = rows.map((row) => {
+        const shares = parseFloat(row["shares"] as string);
+        return {
+          vaultId:         row["vault_id"],
+          shares:          String(shares),
+          currentValue:    (shares * 1.003).toFixed(7),
+          unrealizedYield: (shares * 0.003).toFixed(7),
+          depositedAt:     row["deposited_at"],
+        };
+      });
 
-      const totalVaultValue = vaultPositions.reduce(
-        (sum, p) => sum + BigInt(p.currentValue),
-        BigInt(0)
-      );
+      // Approx XLM→USDC at $0.10/XLM (display only)
+      const usdcFloat      = parseFloat(walletBalance.USDC);
+      const xlmInUsdc      = parseFloat(walletBalance.XLM) * 0.10;
+      const totalVaultValue = vaultPositions.reduce((sum, p) => sum + parseFloat(p.currentValue), 0);
+      const totalValueUSDC = (usdcFloat + xlmInUsdc + totalVaultValue).toFixed(7);
 
-      // Approx XLM→USDC conversion at ~$0.10/XLM (for display only)
-      const xlmInUsdc = BigInt(walletBalance.XLM) / BigInt(10);
-      const totalValueUSDC = String(
-        BigInt(walletBalance.USDC) + xlmInUsdc + totalVaultValue
-      );
-
-      const netYield = vaultPositions.reduce(
-        (sum, p) => sum + BigInt(p.unrealizedYield),
-        BigInt(0)
-      );
+      const netYield = vaultPositions.reduce((sum, p) => sum + parseFloat(p.unrealizedYield), 0);
 
       res.json({
         walletBalance,
         vaultPositions,
         totalValueUSDC,
-        netYield:       String(netYield),
-        totalFeesSpent: String(Math.round(totalFeesSpent * 1e7)),
+        netYield:       netYield.toFixed(7),
+        totalFeesSpent: totalFeesSpent.toFixed(7),
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to fetch positions";
