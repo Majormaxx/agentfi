@@ -6,6 +6,7 @@
 import { DefindexSDK, SupportedNetworks } from "@defindex/sdk";
 import { config } from "../config.js";
 import { signXdr } from "../lib/stellar.js";
+import { storeApySnapshot, getAvgApy } from "../db/database.js";
 
 // ── Network helper ────────────────────────────────────────────────────────────
 
@@ -163,6 +164,7 @@ export class VaultService {
   async getApy(vaultId: string): Promise<VaultApyResult> {
     const sdk          = this.getSDK();
     const vaultAddress = vaultIdToAddress(vaultId);
+    const humanId      = vaultIdToHumanId(vaultAddress);
 
     const [apyResp, vaultInfo] = await Promise.all([
       sdk.getVaultAPY(vaultAddress, sdkNetwork()),
@@ -170,16 +172,32 @@ export class VaultService {
     ]);
 
     const current = apyResp.apy ?? 0;
-    const tvl     = vaultInfo.totalManagedFunds[0]?.total_amount ?? "0";
+    const fund    = vaultInfo.totalManagedFunds[0];
+    const tvl     = fund?.total_amount ?? "0";
+
+    // Compute utilization from invested vs total (both in stroops as BigInt strings)
+    let utilizationRate = 0;
+    try {
+      const fundAny  = fund as unknown as Record<string, string | undefined>;
+      const total    = BigInt(fundAny?.total_amount ?? "0");
+      const invested = BigInt(fundAny?.invested_amount ?? fundAny?.invested ?? "0");
+      utilizationRate = total > 0n ? Number(invested * 10000n / total) / 10000 : 0;
+    } catch { /* leave 0 */ }
+
+    // Persist snapshot so future calls have real historical data
+    storeApySnapshot(humanId, current, tvl, utilizationRate);
+
+    const sevenDay   = getAvgApy(humanId, 7)  ?? current;
+    const thirtyDay  = getAvgApy(humanId, 30) ?? current;
 
     return {
-      vaultId:         vaultIdToHumanId(vaultAddress),
+      vaultId:         humanId,
       strategy:        `${vaultInfo.name} Lending`,
       currentAPY:      current,
-      sevenDayAvgAPY:  parseFloat((current * 0.99).toFixed(2)),
-      thirtyDayAvgAPY: parseFloat((current * 0.95).toFixed(2)),
+      sevenDayAvgAPY:  parseFloat(sevenDay.toFixed(2)),
+      thirtyDayAvgAPY: parseFloat(thirtyDay.toFixed(2)),
       tvl,
-      utilizationRate: 0.78,
+      utilizationRate,
     };
   }
 }

@@ -67,6 +67,8 @@ export function LimitsPanel() {
   const [capInput,    setCapInput]    = useState("10");
   const [loading,     setLoading]     = useState(true);
   const [resetsIn,    setResetsIn]    = useState("—");
+  const [spentToday,  setSpentToday]  = useState(0);
+  const [budgetPct,   setBudgetPct]   = useState(0);
   const capRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -76,19 +78,17 @@ export function LimitsPanel() {
     setDailyCap(cap);
     setCapInput(String(cap));
 
-    // Compute reset time (midnight UTC)
-    const now = new Date();
-    const midnight = new Date(now);
-    midnight.setUTCHours(24, 0, 0, 0);
-    const msLeft = midnight.getTime() - now.getTime();
-    const h = Math.floor(msLeft / 3_600_000);
-    const m = Math.floor((msLeft % 3_600_000) / 60_000);
-    setResetsIn(`${h}h ${m}m`);
-
-    api.agentStatus()
-      .then((s) => setAgentActive(s.running))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.agentStatus().catch(() => null),
+      api.budget().catch(() => null),
+    ]).then(([status, budget]) => {
+      if (status) setAgentActive(status.running);
+      if (budget) {
+        setSpentToday(budget.spentToday);
+        setBudgetPct(budget.pct);
+        setResetsIn(budget.resetsIn);
+      }
+    }).finally(() => setLoading(false));
   }, []);
 
   const handleToggleAction = (id: string) => {
@@ -125,8 +125,6 @@ export function LimitsPanel() {
     if (editingCap) capRef.current?.focus();
   }, [editingCap]);
 
-  const pct = 0; // spent today — hardcoded until budget API exposes this
-
   return (
     <div className="flex flex-col gap-4">
       {/* Daily cap */}
@@ -135,7 +133,7 @@ export function LimitsPanel() {
           <h2 className="text-sm font-semibold">Daily Spending Cap</h2>
           <div className="flex items-center gap-1.5">
             <span className="text-sm font-semibold" style={{ color: "var(--color-earn)" }}>
-              $0.00 /
+              ${spentToday.toFixed(2)} /
             </span>
             {editingCap ? (
               <input ref={capRef} type="number" value={capInput}
@@ -157,10 +155,10 @@ export function LimitsPanel() {
         </div>
         <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--color-border)" }}>
           <div className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${pct}%`, background: pct > 80 ? "var(--color-spend)" : "var(--gradient-earn)" }} />
+            style={{ width: `${budgetPct}%`, background: budgetPct > 80 ? "var(--color-spend)" : "var(--gradient-earn)" }} />
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: "var(--color-muted)" }}>{pct}% used today</span>
+          <span className="text-xs" style={{ color: "var(--color-muted)" }}>{budgetPct.toFixed(1)}% used today</span>
           <div className="flex items-center gap-1" style={{ color: "var(--color-muted)" }}>
             <Clock size={11} strokeWidth={2} />
             <span className="text-xs">Resets in {resetsIn}</span>

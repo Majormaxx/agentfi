@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import fs from "fs";
 import path from "path";
+import { v4 as uuidv4 } from "uuid";
 import { config } from "../config.js";
 
 let _db: Database.Database | null = null;
@@ -112,4 +113,39 @@ export function getEarnSpendSummary(agentAddress: string, days = 7): { earned_us
       "AND created_at >= datetime('now', ?)"
     )
     .all(agentAddress, `-${days} days`) as { earned_usdc: number; spent_usdc: number }[];
+}
+
+export interface BudgetRow {
+  dailyLimitUsdc: number;
+  spentTodayUsdc: number;
+  lastReset: string;
+}
+
+export function getBudgetRow(agentAddress: string): BudgetRow | null {
+  const row = getDb()
+    .prepare("SELECT daily_limit_usdc, spent_today_usdc, last_reset FROM agent_budgets WHERE agent_address = ?")
+    .get(agentAddress) as { daily_limit_usdc: number; spent_today_usdc: number; last_reset: string } | undefined;
+  if (!row) return null;
+  return { dailyLimitUsdc: row.daily_limit_usdc, spentTodayUsdc: row.spent_today_usdc, lastReset: row.last_reset };
+}
+
+export function storeApySnapshot(
+  vaultId: string,
+  apy: number,
+  tvl: string,
+  utilizationRate: number
+): void {
+  getDb().prepare(`
+    INSERT INTO vault_apy_snapshots (id, vault_id, apy, tvl, utilization_rate)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(uuidv4(), vaultId, apy, tvl, utilizationRate);
+}
+
+export function getAvgApy(vaultId: string, days: number): number | null {
+  const row = getDb()
+    .prepare(
+      "SELECT AVG(apy) AS avg FROM vault_apy_snapshots WHERE vault_id = ? AND captured_at >= datetime('now', ?)"
+    )
+    .get(vaultId, `-${days} days`) as { avg: number | null };
+  return row.avg;
 }

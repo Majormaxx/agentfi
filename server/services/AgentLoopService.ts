@@ -19,6 +19,7 @@ import { SwapService }      from "./SwapService.js";
 import { VaultService }     from "./VaultService.js";
 import { RebalanceService } from "./RebalanceService.js";
 import { getDb, recordTransaction } from "../db/database.js";
+import { recordSpend } from "../middleware/budget.js";
 import { v4 as uuidv4 } from "uuid";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -270,6 +271,7 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
         logAgentAction(agentAddress, "trade", swapMsg, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/swap", "x402", 0.002,
           result.txHash, undefined, args, result);
+        recordSpend(agentAddress, 0.002);
         return { action: "swap", result, reason: swapMsg };
       }
 
@@ -283,6 +285,7 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
         logAgentAction(agentAddress, "savings", depositMsg, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/vault_deposit", "x402", 0.001,
           result.txHash, undefined, args, result);
+        recordSpend(agentAddress, 0.001);
         return { action: "vault_deposit", result, reason: depositMsg };
       }
 
@@ -296,6 +299,7 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
         logAgentAction(agentAddress, "savings", withdrawMsg, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/vault_withdraw", "x402", 0.001,
           result.txHash, undefined, args, result);
+        recordSpend(agentAddress, 0.001);
         return { action: "vault_withdraw", result, reason: withdrawMsg };
       }
 
@@ -310,6 +314,7 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
         logAgentAction(agentAddress, "interest", result.message, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/rebalance", "x402", 0.003,
           result.txHash, undefined, args, result);
+        recordSpend(agentAddress, 0.003);
         return { action: "rebalance", result, reason: result.message };
       }
 

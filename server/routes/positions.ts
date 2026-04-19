@@ -9,6 +9,20 @@ import { getVaultPositions, getTotalFeesSpent } from "../db/database.js";
 import { getAccountBalances } from "../lib/stellar.js";
 import { PRICES }             from "../config.js";
 
+// ── XLM price cache (CoinGecko free API, 60-second TTL) ──────────────────────
+let xlmPriceCache = { usd: 0.10, fetchedAt: 0 };
+async function getXlmPrice(): Promise<number> {
+  if (Date.now() - xlmPriceCache.fetchedAt < 60_000) return xlmPriceCache.usd;
+  try {
+    const r = await fetch(
+      "https://api.coingecko.com/api/v3/simple/price?ids=stellar&vs_currencies=usd"
+    );
+    const j = await r.json() as { stellar?: { usd?: number } };
+    xlmPriceCache = { usd: j.stellar?.usd ?? xlmPriceCache.usd, fetchedAt: Date.now() };
+  } catch { /* keep stale value */ }
+  return xlmPriceCache.usd;
+}
+
 const router = Router();
 
 router.get(
@@ -34,24 +48,31 @@ router.get(
         walletBalance = { USDC: "0", XLM: "0" };
       }
 
+      // ── Live XLM price ───────────────────────────────────────────────────
+      const xlmUsd = await getXlmPrice();
+
       // ── SQLite vault positions ────────────────────────────────────────────
       const rows = getVaultPositions(agentAddress);
       const totalFeesSpent = getTotalFeesSpent(agentAddress);
 
       const vaultPositions = rows.map((row) => {
-        const shares = parseFloat(row["shares"] as string);
+        // deposited_amount stored in stroops → convert to USDC decimal for yield calc
+        const deposited      = parseFloat(row["deposited_amount"] as string) / 1e7;
+        const apy            = (row["last_apy_check"] as number | null) ?? 0;
+        const elapsed        = (Date.now() - new Date(row["deposited_at"] as string).getTime()) / 1000;
+        const currentValue   = deposited * (1 + (apy / 100) * (elapsed / 31_536_000));
+        const unrealizedYield = currentValue - deposited;
         return {
           vaultId:         row["vault_id"],
-          shares:          String(shares),
-          currentValue:    (shares * 1.003).toFixed(7),
-          unrealizedYield: (shares * 0.003).toFixed(7),
+          shares:          row["shares"],
+          currentValue:    currentValue.toFixed(7),
+          unrealizedYield: unrealizedYield.toFixed(7),
           depositedAt:     row["deposited_at"],
         };
       });
 
-      // Approx XLM→USDC at $0.10/XLM (display only)
       const usdcFloat      = parseFloat(walletBalance.USDC);
-      const xlmInUsdc      = parseFloat(walletBalance.XLM) * 0.10;
+      const xlmInUsdc      = parseFloat(walletBalance.XLM) * xlmUsd;
       const totalVaultValue = vaultPositions.reduce((sum, p) => sum + parseFloat(p.currentValue), 0);
       const totalValueUSDC = (usdcFloat + xlmInUsdc + totalVaultValue).toFixed(7);
 

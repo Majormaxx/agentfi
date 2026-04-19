@@ -50,3 +50,14 @@ CREATE TABLE IF NOT EXISTS activity_log (
 );
 
 CREATE INDEX IF NOT EXISTS idx_activity_log_agent ON activity_log(agent_address);
+
+CREATE TABLE IF NOT EXISTS vault_apy_snapshots (
+  id TEXT PRIMARY KEY,
+  vault_id TEXT NOT NULL,
+  apy REAL NOT NULL,
+  tvl TEXT,
+  utilization_rate REAL,
+  captured_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_apy_snapshots_vault ON vault_apy_snapshots(vault_id, captured_at);

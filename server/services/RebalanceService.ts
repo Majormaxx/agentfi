@@ -1,5 +1,6 @@
 import { VaultService } from "./VaultService.js";
 import { config } from "../config.js";
+import { getVaultPositions } from "../db/database.js";
 
 export type RebalanceAction = "compound" | "shift";
 
@@ -34,9 +35,17 @@ export class RebalanceService {
   }
 
   private async compound(req: RebalanceRequest): Promise<RebalanceResult> {
-    // Withdraw a representative yield slice then re-deposit it.
-    // In live mode VaultService calls DefindexSDK real transactions.
-    const yieldShares = "3650000"; // ~0.365 USDC accrued yield in stroops
+    // Withdraw only the accrued yield slice (APY × deposited × elapsed), then re-deposit.
+    const positions = getVaultPositions(req.agentAddress);
+    const pos = positions.find((p) => p["vault_id"] === req.sourceVault);
+    if (!pos || !pos["shares"]) {
+      throw new Error(`No position found in vault ${req.sourceVault}`);
+    }
+    const shares    = parseFloat(pos["shares"] as string);
+    const apy       = (pos["last_apy_check"] as number | null) ?? 0;
+    const elapsed   = (Date.now() - new Date(pos["deposited_at"] as string).getTime()) / 1000;
+    const yieldFrac = (apy / 100) * (elapsed / 31_536_000);
+    const yieldShares = Math.max(1, Math.floor(shares * yieldFrac)).toString();
 
     const withdrawal = await this.vaultService.withdraw({
       vaultId:      req.sourceVault,

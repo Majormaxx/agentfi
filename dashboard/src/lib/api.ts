@@ -70,6 +70,13 @@ export interface AgentStatusResponse {
   nextTickAt: string | null;
 }
 
+export interface BudgetResponse {
+  dailyLimit: number;
+  spentToday: number;
+  pct: number;
+  resetsIn: string;
+}
+
 export interface VaultApyResponse {
   vaultId: string;
   strategy: string;
@@ -91,6 +98,9 @@ export const api = {
       agentAddress: AGENT_ADDRESS,
       limit: String(limit),
     }),
+
+  budget: () =>
+    get<BudgetResponse>("/budget", { agentAddress: AGENT_ADDRESS }),
 
   agentStatus: () =>
     get<AgentStatusResponse>("/agent/status"),

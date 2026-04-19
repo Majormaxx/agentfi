@@ -35,12 +35,14 @@ router.get("/activity", (req: Request, res: Response) => {
   const rows      = getRecentActivity(agentAddress, pageSize);
   const totalFees = getTotalFeesSpent(agentAddress);
 
-  // Compute total unrealized yield from vault positions (estimated)
+  // Compute real unrealized yield: APY × deposited_amount × time_elapsed
   const positions = getVaultPositions(agentAddress);
   const totalYield = positions.reduce((sum, p) => {
-    const shares = BigInt((p["shares"] as string) ?? "0");
-    return sum + shares * 3n / 1000n; // ~0.3% simulated yield
-  }, 0n);
+    const deposited = parseFloat((p["deposited_amount"] as string) ?? "0") / 1e7;
+    const apy       = (p["last_apy_check"] as number | null) ?? 0;
+    const elapsed   = (Date.now() - new Date(p["deposited_at"] as string).getTime()) / 1000;
+    return sum + deposited * (apy / 100) * (elapsed / 31_536_000);
+  }, 0);
 
   const transactions = rows.map((row) => ({
     id:          row.id,
@@ -57,7 +59,7 @@ router.get("/activity", (req: Request, res: Response) => {
     transactions,
     summary: {
       totalFeesSpentUsdc:  totalFees,
-      totalYieldEarned:    String(totalYield),   // stroops
+      totalYieldEarned:    totalYield.toFixed(7), // USDC decimal
       vaultPositionCount:  positions.length,
     },
   });
