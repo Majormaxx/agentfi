@@ -149,3 +149,42 @@ export function getAvgApy(vaultId: string, days: number): number | null {
     .get(vaultId, `-${days} days`) as { avg: number | null };
   return row.avg;
 }
+
+// ── Per-user Stellar wallet ────────────────────────────────────────────────────
+
+export interface UserWallet {
+  privyUserId:    string;
+  stellarAddress: string;
+  stellarSecret:  string;
+  funded:         boolean;
+}
+
+export function getUserWallet(privyUserId: string): UserWallet | null {
+  const row = getDb()
+    .prepare("SELECT stellar_address, stellar_secret, funded FROM user_wallets WHERE privy_user_id = ?")
+    .get(privyUserId) as { stellar_address: string; stellar_secret: string; funded: number } | undefined;
+  if (!row) return null;
+  return {
+    privyUserId,
+    stellarAddress: row.stellar_address,
+    stellarSecret:  row.stellar_secret,
+    funded:         row.funded === 1,
+  };
+}
+
+export function createUserWallet(
+  privyUserId: string,
+  stellarAddress: string,
+  stellarSecret: string
+): void {
+  getDb().prepare(`
+    INSERT OR IGNORE INTO user_wallets (privy_user_id, stellar_address, stellar_secret)
+    VALUES (?, ?, ?)
+  `).run(privyUserId, stellarAddress, stellarSecret);
+}
+
+export function markWalletFunded(privyUserId: string): void {
+  getDb()
+    .prepare("UPDATE user_wallets SET funded = 1 WHERE privy_user_id = ?")
+    .run(privyUserId);
+}

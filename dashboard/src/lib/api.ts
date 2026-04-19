@@ -1,10 +1,12 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3001";
 export const AGENT_ADDRESS = process.env.NEXT_PUBLIC_AGENT_ADDRESS ?? "";
 
-async function get<T>(path: string, params?: Record<string, string>): Promise<T> {
+async function get<T>(path: string, params?: Record<string, string>, token?: string): Promise<T> {
   const url = new URL(`${API_URL}${path}`);
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v));
-  const res = await fetch(url.toString(), { cache: "no-store" });
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(url.toString(), { cache: "no-store", headers });
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
   return res.json();
 }
@@ -70,6 +72,11 @@ export interface AgentStatusResponse {
   nextTickAt: string | null;
 }
 
+export interface WalletMeResponse {
+  stellarAddress: string;
+  funded: boolean;
+}
+
 export interface BudgetResponse {
   dailyLimit: number;
   spentToday: number;
@@ -90,14 +97,17 @@ export interface VaultApyResponse {
 // ── API calls ──────────────────────────────────────────────────────────────────
 
 export const api = {
-  positions: () =>
-    get<PositionsResponse>("/positions", { agentAddress: AGENT_ADDRESS }),
+  positions: (agentAddress = AGENT_ADDRESS) =>
+    get<PositionsResponse>("/positions", { agentAddress }),
 
-  activity: (limit = 10) =>
+  activity: (limit = 10, agentAddress = AGENT_ADDRESS) =>
     get<ActivityResponse>("/activity", {
-      agentAddress: AGENT_ADDRESS,
+      agentAddress,
       limit: String(limit),
     }),
+
+  walletMe: (token: string) =>
+    get<WalletMeResponse>("/wallet/me", undefined, token),
 
   budget: () =>
     get<BudgetResponse>("/budget", { agentAddress: AGENT_ADDRESS }),
@@ -108,8 +118,8 @@ export const api = {
   agentTick: () =>
     post<{ action: string; result?: unknown; reason?: string }>("/agent/tick"),
 
-  vaultApy: (vaultId: string) =>
-    get<VaultApyResponse>("/vault/apy", { vaultId, agentAddress: AGENT_ADDRESS }),
+  vaultApy: (vaultId: string, agentAddress = AGENT_ADDRESS) =>
+    get<VaultApyResponse>("/vault/apy", { vaultId, agentAddress }),
 
   vaultDeposit: (vaultId: string, amount: string, token: string) =>
     post<{ txHash: string; sharesReceived: string; currentAPY: string }>(

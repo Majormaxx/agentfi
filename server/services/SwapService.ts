@@ -9,6 +9,7 @@ import {
   TradeType,
 } from "@soroswap/sdk";
 import type { QuoteResponse } from "@soroswap/sdk";
+import { Keypair } from "@stellar/stellar-sdk";
 import { config } from "../config.js";
 import { signXdr } from "../lib/stellar.js";
 
@@ -102,7 +103,7 @@ export class SwapService {
     return this.mapQuoteResponse(sdkQuote, req.tokenIn, req.tokenOut, req.slippage);
   }
 
-  async execute(req: SwapExecuteRequest): Promise<SwapExecuteResult> {
+  async execute(req: SwapExecuteRequest, signingKeypair?: Keypair): Promise<SwapExecuteResult> {
     const sdk = this.getSDK();
 
     // 1. Get best quote
@@ -127,8 +128,8 @@ export class SwapService {
       to:    req.agentAddress,
     });
 
-    // 3. Sign with operator keypair
-    const signed = signXdr(buildResponse.xdr);
+    // 3. Sign with user's keypair if available, else operator keypair
+    const signed = signXdr(buildResponse.xdr, signingKeypair);
 
     // 4. Submit to Stellar
     const result = await sdk.send(signed);

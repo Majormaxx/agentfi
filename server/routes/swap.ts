@@ -76,13 +76,14 @@ router.post(
     }
 
     try {
+      const signingKeypair = res.locals.stellarKeypair ?? undefined;
       const result = await swapService.execute({
         tokenIn,
         tokenOut,
         amountIn,
         slippage:     slippage ?? 0.5,
         agentAddress,
-      });
+      }, signingKeypair);
       recordTransaction(uuidv4(), agentAddress, "/swap/execute", "x402", parseFloat(PRICES.swapExecute), result.txHash, undefined, req.body, result);
       res.json(result);
     } catch (err: unknown) {

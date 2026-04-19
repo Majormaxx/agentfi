@@ -11,6 +11,7 @@ import strategyRouter  from "./routes/strategy.js";
 import activityRouter  from "./routes/activity.js";
 import agentRouter     from "./routes/agent.js";
 import budgetRouter    from "./routes/budget.js";
+import walletRouter    from "./routes/wallet.js";
 import { VaultService } from "./services/VaultService.js";
 import { agentLoop }   from "./services/agentLoopInstance.js";
 
@@ -44,6 +45,7 @@ app.use("/", activityRouter);    // public — dashboard reads
 app.use("/", agentRouter);       // public — dashboard control
 app.use("/", budgetRouter);      // public — dashboard reads budget state
 app.use("/", vaultApyRouter);    // public — dashboard reads vault APY
+app.use("/", requireAuth, walletRouter);
 app.use("/", requireAuth, swapRouter);
 app.use("/", requireAuth, vaultRouter);
 app.use("/", requireAuth, strategyRouter);

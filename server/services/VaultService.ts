@@ -4,6 +4,7 @@
  * Signs XDRs with AGENTFI_STELLAR_SECRET and submits to Stellar via @defindex/sdk.
  */
 import { DefindexSDK, SupportedNetworks } from "@defindex/sdk";
+import { Keypair } from "@stellar/stellar-sdk";
 import { config } from "../config.js";
 import { signXdr } from "../lib/stellar.js";
 import { storeApySnapshot, getAvgApy } from "../db/database.js";
@@ -92,7 +93,7 @@ export class VaultService {
 
   // ── Deposit ──────────────────────────────────────────────────────────────────
 
-  async deposit(req: VaultDepositRequest): Promise<VaultDepositResult> {
+  async deposit(req: VaultDepositRequest, signingKeypair?: Keypair): Promise<VaultDepositResult> {
     const sdk          = this.getSDK();
     const vaultAddress = vaultIdToAddress(req.vaultId);
     const amountNum    = parseInt(req.amount, 10);
@@ -104,7 +105,7 @@ export class VaultService {
     );
 
     if (!txResp.xdr) throw new Error("DeFindex deposit returned no XDR");
-    const signed = signXdr(txResp.xdr);
+    const signed = signXdr(txResp.xdr, signingKeypair);
     const result = await sdk.sendTransaction(signed, sdkNetwork());
 
     if (!result.success) throw new Error(`Vault deposit failed (tx: ${result.txHash})`);
@@ -131,7 +132,7 @@ export class VaultService {
 
   // ── Withdraw ─────────────────────────────────────────────────────────────────
 
-  async withdraw(req: VaultWithdrawRequest): Promise<VaultWithdrawResult> {
+  async withdraw(req: VaultWithdrawRequest, signingKeypair?: Keypair): Promise<VaultWithdrawResult> {
     const sdk          = this.getSDK();
     const vaultAddress = vaultIdToAddress(req.vaultId);
     const sharesNum    = parseInt(req.shares, 10);
@@ -143,7 +144,7 @@ export class VaultService {
     );
 
     if (!txResp.xdr) throw new Error("DeFindex withdraw returned no XDR");
-    const signed = signXdr(txResp.xdr);
+    const signed = signXdr(txResp.xdr, signingKeypair);
     const result = await sdk.sendTransaction(signed, sdkNetwork());
 
     if (!result.success) throw new Error(`Vault withdrawal failed (tx: ${result.txHash})`);

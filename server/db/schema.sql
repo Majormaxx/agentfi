@@ -61,3 +61,11 @@ CREATE TABLE IF NOT EXISTS vault_apy_snapshots (
 );
 
 CREATE INDEX IF NOT EXISTS idx_apy_snapshots_vault ON vault_apy_snapshots(vault_id, captured_at);
+
+CREATE TABLE IF NOT EXISTS user_wallets (
+  privy_user_id   TEXT PRIMARY KEY,
+  stellar_address TEXT NOT NULL UNIQUE,
+  stellar_secret  TEXT NOT NULL,
+  funded          INTEGER NOT NULL DEFAULT 0,
+  created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

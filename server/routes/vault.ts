@@ -37,7 +37,8 @@ router.post(
     }
 
     try {
-      const result = await vaultService.deposit({ vaultId, amount, agentAddress });
+      const signingKeypair = res.locals.stellarKeypair ?? undefined;
+      const result = await vaultService.deposit({ vaultId, amount, agentAddress }, signingKeypair);
 
       upsertVaultPosition(uuidv4(), agentAddress, vaultId, result.sharesReceived, amount, parseFloat(result.currentAPY));
       recordTransaction(uuidv4(), agentAddress, "/vault/deposit", "x402", parseFloat(PRICES.vaultDeposit), result.txHash, undefined, req.body, result);
@@ -75,7 +76,8 @@ router.post(
     }
 
     try {
-      const result = await vaultService.withdraw({ vaultId, shares, agentAddress });
+      const signingKeypair = res.locals.stellarKeypair ?? undefined;
+      const result = await vaultService.withdraw({ vaultId, shares, agentAddress }, signingKeypair);
       recordTransaction(uuidv4(), agentAddress, "/vault/withdraw", "x402", parseFloat(PRICES.vaultWithdraw), result.txHash, undefined, req.body, result);
       res.json(result);
     } catch (err: unknown) {

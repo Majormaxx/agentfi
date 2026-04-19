@@ -33,14 +33,14 @@ export function getOperatorKeypair(): Keypair {
 }
 
 /**
- * Sign a base64 Soroban transaction XDR with the operator keypair.
+ * Sign a base64 Soroban transaction XDR.
+ * If `keypair` is provided it is used; otherwise falls back to the operator keypair.
  * Returns the signed XDR as a base64 string, ready for submission.
  */
-export function signXdr(xdr: string): string {
-  const keypair = getOperatorKeypair();
+export function signXdr(xdr: string, keypair?: Keypair): string {
+  const kp = keypair ?? getOperatorKeypair();
   const networkPassphrase = getNetworkPassphrase();
 
-  // Detect fee-bump vs regular transaction
   let tx: Transaction | FeeBumpTransaction;
   try {
     tx = new Transaction(xdr, networkPassphrase);
@@ -48,12 +48,7 @@ export function signXdr(xdr: string): string {
     tx = new FeeBumpTransaction(xdr, networkPassphrase);
   }
 
-  if (tx instanceof FeeBumpTransaction) {
-    tx.sign(keypair);
-  } else {
-    tx.sign(keypair);
-  }
-
+  tx.sign(kp);
   return tx.toEnvelope().toXDR("base64");
 }
 
