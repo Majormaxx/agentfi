@@ -9,13 +9,19 @@ async function get<T>(path: string, params?: Record<string, string>): Promise<T>
   return res.json();
 }
 
-async function post<T>(path: string, body?: unknown): Promise<T> {
+async function post<T>(path: string, body?: unknown, token?: string): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try { const j = await res.json(); msg = j.message ?? msg; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
   return res.json();
 }
 
@@ -94,4 +100,18 @@ export const api = {
 
   vaultApy: (vaultId: string) =>
     get<VaultApyResponse>("/vault/apy", { vaultId, agentAddress: AGENT_ADDRESS }),
+
+  vaultDeposit: (vaultId: string, amount: string, token: string) =>
+    post<{ txHash: string; sharesReceived: string; currentAPY: string }>(
+      "/vault/deposit",
+      { vaultId, amount, agentAddress: AGENT_ADDRESS },
+      token
+    ),
+
+  vaultWithdraw: (vaultId: string, shares: string, token: string) =>
+    post<{ txHash: string; amountReceived: string; yieldEarned: string }>(
+      "/vault/withdraw",
+      { vaultId, shares, agentAddress: AGENT_ADDRESS },
+      token
+    ),
 };

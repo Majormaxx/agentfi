@@ -27,14 +27,13 @@ function buildResourceServer(): x402ResourceServer | null {
 const resourceServer = buildResourceServer();
 
 // ── Route config — all gated endpoints declared once ─────────────────────────
-// Only transactional/write endpoints require x402 payment.
-// Read-only dashboard endpoints (positions, vault/apy, activity, agent/status) are free.
+// x402 payment gates are for EXTERNAL API consumers only.
+// Dashboard owner operations (vault deposit/withdraw triggered by authenticated user)
+// go through requireAuth only — no micropayment required.
 const X402_ROUTES = {
-  "GET /swap/quote":          { accepts: { scheme: "exact" as const, price: `$${PRICES.swapQuote}`,   network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Optimal swap quote across Stellar DEXs" },
-  "POST /swap/execute":       { accepts: { scheme: "exact" as const, price: `$${PRICES.swapExecute}`,  network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Execute token swap on best Stellar DEX route" },
-  "POST /vault/deposit":      { accepts: { scheme: "exact" as const, price: `$${PRICES.vaultDeposit}`, network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Deposit stablecoins into DeFindex yield vault" },
-  "POST /vault/withdraw":     { accepts: { scheme: "exact" as const, price: `$${PRICES.vaultWithdraw}`,network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Withdraw from DeFindex yield vault" },
-  "POST /strategy/rebalance": { accepts: { scheme: "exact" as const, price: `$${PRICES.rebalance}`,   network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Execute yield compound or vault shift" },
+  "GET /swap/quote":          { accepts: { scheme: "exact" as const, price: `$${PRICES.swapQuote}`,  network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Optimal swap quote across Stellar DEXs" },
+  "POST /swap/execute":       { accepts: { scheme: "exact" as const, price: `$${PRICES.swapExecute}`, network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Execute token swap on best Stellar DEX route" },
+  "POST /strategy/rebalance": { accepts: { scheme: "exact" as const, price: `$${PRICES.rebalance}`,  network: STELLAR_NETWORK_CAIP2, payTo: config.agentfiAddress }, description: "Execute yield compound or vault shift" },
 };
 
 const devPassthrough: RequestHandler = (_req, _res, next) => next();

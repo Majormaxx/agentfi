@@ -1,18 +1,35 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Coins, Landmark, TrendingUp, ArrowDownToLine, Plus, RefreshCw, X } from "lucide-react";
+import { Coins, Landmark, TrendingUp, ArrowDownToLine, Plus, RefreshCw, X, Loader2 } from "lucide-react";
+import { usePrivy } from "@privy-io/react-auth";
 import { api, type PositionsResponse, type VaultApyResponse } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
 // ── Deposit modal ──────────────────────────────────────────────────────────────
-function DepositModal({ xlm, apy, onClose }: { xlm: number; apy: VaultApyResponse | null; onClose: () => void }) {
-  const [amount, setAmount] = useState("");
+function DepositModal({ xlm, apy, onClose, getToken }: { xlm: number; apy: VaultApyResponse | null; onClose: () => void; getToken: () => Promise<string | null> }) {
+  const [amount,   setAmount]   = useState("");
+  const [working,  setWorking]  = useState(false);
   const toast = useToast();
 
-  const handleConfirm = () => {
-    toast.show("Wallet sign-in required to move funds. Connect a wallet to complete this action.", "warning");
-    onClose();
+  const handleConfirm = async () => {
+    const amountNum = parseFloat(amount);
+    if (!amountNum || amountNum <= 0) { toast.show("Enter a valid amount", "warning"); return; }
+    if (amountNum > xlm) { toast.show("Amount exceeds your XLM balance", "warning"); return; }
+    setWorking(true);
+    try {
+      const token = await getToken();
+      if (!token) { toast.show("Sign in required — please log in first", "warning"); return; }
+      // Convert XLM to stroops (1 XLM = 10,000,000 stroops)
+      const stroops = String(Math.floor(amountNum * 1e7));
+      await api.vaultDeposit("defindex-blend-usdc-v1", stroops, token);
+      toast.show(`Deposited ${amountNum} XLM into savings vault!`, "success");
+      onClose();
+    } catch (err: unknown) {
+      toast.show(err instanceof Error ? err.message : "Deposit failed", "error");
+    } finally {
+      setWorking(false);
+    }
   };
 
   const est = parseFloat(amount || "0") * 0.10;
@@ -69,15 +86,15 @@ function DepositModal({ xlm, apy, onClose }: { xlm: number; apy: VaultApyRespons
         )}
 
         <div className="flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl text-sm font-medium hover:opacity-70 transition-opacity"
+          <button onClick={onClose} disabled={working}
+            className="flex-1 py-3 rounded-xl text-sm font-medium hover:opacity-70 transition-opacity disabled:opacity-40"
             style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-muted)" }}>
             Cancel
           </button>
-          <button onClick={handleConfirm}
-            className="flex-1 py-3 rounded-xl text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all"
+          <button onClick={handleConfirm} disabled={working}
+            className="flex-1 py-3 rounded-xl text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
             style={{ background: "var(--gradient-earn)", color: "#fff" }}>
-            Confirm →
+            {working ? <><Loader2 size={14} className="animate-spin" /> Depositing…</> : "Confirm →"}
           </button>
         </div>
       </div>
@@ -86,13 +103,28 @@ function DepositModal({ xlm, apy, onClose }: { xlm: number; apy: VaultApyRespons
 }
 
 // ── Withdraw modal ─────────────────────────────────────────────────────────────
-function WithdrawModal({ vaultValue, onClose }: { vaultValue: number; onClose: () => void }) {
-  const [amount, setAmount] = useState("");
+function WithdrawModal({ vaultValue, onClose, getToken }: { vaultValue: number; onClose: () => void; getToken: () => Promise<string | null> }) {
+  const [amount,  setAmount]  = useState("");
+  const [working, setWorking] = useState(false);
   const toast = useToast();
 
-  const handleConfirm = () => {
-    toast.show("Wallet sign-in required to withdraw. Connect a wallet to complete this action.", "warning");
-    onClose();
+  const handleConfirm = async () => {
+    const amountNum = parseFloat(amount);
+    if (!amountNum || amountNum <= 0) { toast.show("Enter a valid amount", "warning"); return; }
+    setWorking(true);
+    try {
+      const token = await getToken();
+      if (!token) { toast.show("Sign in required — please log in first", "warning"); return; }
+      // amount is in USDC; treat as shares (1:1 approximation for display)
+      const shares = String(Math.floor(amountNum * 1e7));
+      await api.vaultWithdraw("defindex-blend-usdc-v1", shares, token);
+      toast.show(`Withdrew $${amountNum} from savings vault!`, "success");
+      onClose();
+    } catch (err: unknown) {
+      toast.show(err instanceof Error ? err.message : "Withdrawal failed", "error");
+    } finally {
+      setWorking(false);
+    }
   };
 
   return (
@@ -128,15 +160,15 @@ function WithdrawModal({ vaultValue, onClose }: { vaultValue: number; onClose: (
         </div>
 
         <div className="flex gap-3">
-          <button onClick={onClose}
-            className="flex-1 py-3 rounded-xl text-sm font-medium hover:opacity-70 transition-opacity"
+          <button onClick={onClose} disabled={working}
+            className="flex-1 py-3 rounded-xl text-sm font-medium hover:opacity-70 transition-opacity disabled:opacity-40"
             style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)", color: "var(--color-muted)" }}>
             Cancel
           </button>
-          <button onClick={handleConfirm}
-            className="flex-1 py-3 rounded-xl text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all"
+          <button onClick={handleConfirm} disabled={working}
+            className="flex-1 py-3 rounded-xl text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
             style={{ background: "var(--color-spend)", color: "#fff" }}>
-            Withdraw →
+            {working ? <><Loader2 size={14} className="animate-spin" /> Withdrawing…</> : "Withdraw →"}
           </button>
         </div>
       </div>
@@ -146,6 +178,7 @@ function WithdrawModal({ vaultValue, onClose }: { vaultValue: number; onClose: (
 
 // ── Main page ──────────────────────────────────────────────────────────────────
 export default function PortfolioPage() {
+  const { getAccessToken } = usePrivy();
   const [positions, setPositions] = useState<PositionsResponse | null>(null);
   const [apy, setApy]             = useState<VaultApyResponse | null>(null);
   const [loading, setLoading]     = useState(true);
@@ -180,8 +213,8 @@ export default function PortfolioPage() {
 
   return (
     <>
-      {showDeposit && <DepositModal xlm={xlm} apy={apy} onClose={() => setShowDeposit(false)} />}
-      {showWithdraw && <WithdrawModal vaultValue={vaultValue} onClose={() => setShowWithdraw(false)} />}
+      {showDeposit && <DepositModal xlm={xlm} apy={apy} onClose={() => setShowDeposit(false)} getToken={getAccessToken} />}
+      {showWithdraw && <WithdrawModal vaultValue={vaultValue} onClose={() => setShowWithdraw(false)} getToken={getAccessToken} />}
 
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
