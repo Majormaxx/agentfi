@@ -48,6 +48,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span className="text-[17px] font-semibold tracking-tight">
                   Agent<span style={{ color: "var(--color-earn)" }}>Fi</span>
                 </span>
+                <span className="badge-testnet">TESTNET</span>
               </div>
               <div className="flex items-center gap-2">
                 <DarkModeToggle />

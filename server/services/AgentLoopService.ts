@@ -136,15 +136,23 @@ export class AgentLoopService {
   private rebalance      = new RebalanceService();
   private timer: ReturnType<typeof setInterval> | null = null;
   private running        = false;
+  private lastDecision:  { action: string; reason: string; tickedAt: string } | null = null;
+  private nextTickAt:    Date | null = null;
 
   // ── Public API ─────────────────────────────────────────────────────────────
+
+  getLastDecision() { return this.lastDecision; }
+  getNextTickAt()   { return this.nextTickAt?.toISOString() ?? null; }
 
   start() {
     if (this.timer) return;
     console.log("[AgentLoop] Starting — interval:", LOOP_INTERVAL_MS / 1000, "s");
-    // Run once immediately, then on interval
+    this.nextTickAt = new Date(Date.now() + LOOP_INTERVAL_MS);
     this.tick().catch(console.error);
-    this.timer = setInterval(() => this.tick().catch(console.error), LOOP_INTERVAL_MS);
+    this.timer = setInterval(() => {
+      this.nextTickAt = new Date(Date.now() + LOOP_INTERVAL_MS);
+      this.tick().catch(console.error);
+    }, LOOP_INTERVAL_MS);
   }
 
   stop() {
@@ -157,7 +165,13 @@ export class AgentLoopService {
     if (this.running) return { action: "skipped", reason: "previous tick still running" };
     this.running = true;
     try {
-      return await this._decide();
+      const result = await this._decide();
+      this.lastDecision = {
+        action:   result.action,
+        reason:   (result.reason as string) ?? "",
+        tickedAt: new Date().toISOString(),
+      };
+      return result;
     } finally {
       this.running = false;
     }
@@ -252,11 +266,11 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
           slippage:     args.slippage as number,
           agentAddress,
         });
-        logAgentAction(agentAddress, "trade",
-          `Swapped ${args.amountIn} ${args.tokenIn} → ${args.tokenOut} via ${result.protocol}`, result);
+        const swapMsg = `Swapped ${args.amountIn} ${args.tokenIn} → ${args.tokenOut} via ${result.protocol}`;
+        logAgentAction(agentAddress, "trade", swapMsg, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/swap", "x402", 0.002,
           result.txHash, undefined, args, result);
-        return { action: "swap", result };
+        return { action: "swap", result, reason: swapMsg };
       }
 
       case "vault_deposit": {
@@ -265,11 +279,11 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
           amount:       args.amount  as string,
           agentAddress,
         });
-        logAgentAction(agentAddress, "savings",
-          `Deposited ${args.amount} stroops into ${args.vaultId} @ ${result.currentAPY}% APY`, result);
+        const depositMsg = `Deposited ${args.amount} into ${args.vaultId} earning ${result.currentAPY}% APY`;
+        logAgentAction(agentAddress, "savings", depositMsg, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/vault_deposit", "x402", 0.001,
           result.txHash, undefined, args, result);
-        return { action: "vault_deposit", result };
+        return { action: "vault_deposit", result, reason: depositMsg };
       }
 
       case "vault_withdraw": {
@@ -278,11 +292,11 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
           shares:       args.shares  as string,
           agentAddress,
         });
-        logAgentAction(agentAddress, "savings",
-          `Withdrew ${result.amountReceived} stroops from ${args.vaultId}, yield: ${result.yieldEarned}`, result);
+        const withdrawMsg = `Withdrew ${result.amountReceived} from ${args.vaultId}, yield: ${result.yieldEarned}`;
+        logAgentAction(agentAddress, "savings", withdrawMsg, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/vault_withdraw", "x402", 0.001,
           result.txHash, undefined, args, result);
-        return { action: "vault_withdraw", result };
+        return { action: "vault_withdraw", result, reason: withdrawMsg };
       }
 
       case "rebalance": {
@@ -293,15 +307,14 @@ Respond with exactly ONE tool call. No explanations outside the tool call.`;
           targetVault: args.targetVault as string | undefined,
           amount:      args.amount      as string | undefined,
         });
-        logAgentAction(agentAddress, "interest",
-          result.message, result);
+        logAgentAction(agentAddress, "interest", result.message, result);
         recordTransaction(uuidv4(), agentAddress, "agent-loop/rebalance", "x402", 0.003,
           result.txHash, undefined, args, result);
-        return { action: "rebalance", result };
+        return { action: "rebalance", result, reason: result.message };
       }
 
       case "hold": {
-        const reason = args.reason as string ?? "No action needed";
+        const reason = (args.reason as string) ?? "No action needed";
         logAgentAction(agentAddress, "hold", reason);
         return { action: "hold", reason };
       }

@@ -2,23 +2,16 @@
 
 import { useEffect, useState } from "react";
 import {
-  Area,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  ComposedChart,
+  Area, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ComposedChart,
 } from "recharts";
 
-// Seed data — grows as real fees accumulate
 function buildChartData(totalFees: number) {
   const days = ["Apr 11","Apr 12","Apr 13","Apr 14","Apr 15","Apr 16","Apr 17"];
   return days.map((day, i) => {
     const progress = (i + 1) / days.length;
     return {
       day,
-      earned: parseFloat((progress * (totalFees * 6.8)).toFixed(3)),
+      earned: parseFloat((progress * (totalFees * 6.8)).toFixed(4)),
       costs:  parseFloat((progress * totalFees).toFixed(4)),
     };
   });
@@ -47,8 +40,14 @@ function CustomTooltip({ active, payload, label }: {
   );
 }
 
-export function EarnSpendChart({ feesSpent = 0 }: { feesSpent?: number }) {
-  const allData = buildChartData(feesSpent || 0.45);
+interface Props {
+  feesSpent?: number;
+  netYield?: number;
+}
+
+export function EarnSpendChart({ feesSpent = 0, netYield = 0 }: Props) {
+  const hasRealData = feesSpent > 0 || netYield > 0;
+  const allData = buildChartData(hasRealData ? feesSpent : 0.45);
   const [visibleCount, setVisibleCount] = useState(2);
   const data = allData.slice(0, visibleCount);
 
@@ -63,7 +62,7 @@ export function EarnSpendChart({ feesSpent = 0 }: { feesSpent?: number }) {
   }, [allData.length]);
 
   const latest = allData[allData.length - 1];
-  const isSelfSustaining = latest.earned > latest.costs;
+  const isSelfSustaining = hasRealData && latest.earned > latest.costs;
 
   return (
     <div className="card">
@@ -88,40 +87,59 @@ export function EarnSpendChart({ feesSpent = 0 }: { feesSpent?: number }) {
         {isSelfSustaining && <span className="badge-sustaining">Self-sustaining ↗</span>}
       </div>
 
-      <div className="flex gap-4 mb-3 mt-2">
-        <div className="flex items-center gap-1.5">
-          <span className="w-8 h-0.5 rounded-full" style={{ background: "#00C896" }} />
-          <span className="text-xs" style={{ color: "var(--color-muted)" }}>Earned</span>
+      {!hasRealData ? (
+        // Startup state — no real data yet
+        <div className="flex flex-col items-center justify-center h-40 gap-2 text-center">
+          <div className="relative flex h-3 w-3 mb-1">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-50"
+              style={{ background: "var(--color-earn)" }} />
+            <span className="relative inline-flex rounded-full h-3 w-3"
+              style={{ background: "var(--color-earn)" }} />
+          </div>
+          <p className="text-sm font-medium" style={{ color: "var(--color-text)" }}>
+            Agent is warming up
+          </p>
+          <p className="text-xs max-w-[220px]" style={{ color: "var(--color-muted)" }}>
+            Yield and cost history will appear here once the agent makes its first trade.
+          </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="w-8 h-0.5 rounded-full"
-            style={{ backgroundImage: "repeating-linear-gradient(90deg,#F97316 0,#F97316 4px,transparent 4px,transparent 7px)" }} />
-          <span className="text-xs" style={{ color: "var(--color-muted)" }}>Costs</span>
-        </div>
-      </div>
-
-      <ResponsiveContainer width="100%" height={160}>
-        <ComposedChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-          <defs>
-            <linearGradient id="earnGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#00C896" stopOpacity={0.35} />
-              <stop offset="100%" stopColor="#00C896" stopOpacity={0.02} />
-            </linearGradient>
-          </defs>
-          <XAxis dataKey="day" tick={{ fontSize: 10, fill: "var(--color-muted)" }} tickLine={false} axisLine={false} />
-          <YAxis tick={{ fontSize: 10, fill: "var(--color-muted)" }} tickLine={false} axisLine={false}
-            tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
-          <Tooltip content={<CustomTooltip />} cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }} />
-          <Area type="monotone" dataKey="earned" name="Earned"
-            fill="url(#earnGradient)" stroke="#00C896" strokeWidth={2.5}
-            dot={false} activeDot={{ r: 5, fill: "#00C896", stroke: "#fff", strokeWidth: 2 }}
-            isAnimationActive animationDuration={300} />
-          <Line type="monotone" dataKey="costs" name="Costs"
-            stroke="#F97316" strokeWidth={2} strokeDasharray="5 3"
-            dot={false} activeDot={{ r: 5, fill: "#F97316", stroke: "#fff", strokeWidth: 2 }}
-            isAnimationActive animationDuration={300} />
-        </ComposedChart>
-      </ResponsiveContainer>
+      ) : (
+        <>
+          <div className="flex gap-4 mb-3 mt-2">
+            <div className="flex items-center gap-1.5">
+              <span className="w-8 h-0.5 rounded-full" style={{ background: "#00C896" }} />
+              <span className="text-xs" style={{ color: "var(--color-muted)" }}>Earned</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-8 h-0.5 rounded-full"
+                style={{ backgroundImage: "repeating-linear-gradient(90deg,#F97316 0,#F97316 4px,transparent 4px,transparent 7px)" }} />
+              <span className="text-xs" style={{ color: "var(--color-muted)" }}>Costs</span>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <ComposedChart data={data} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="earnGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%"   stopColor="#00C896" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="#00C896" stopOpacity={0.02} />
+                </linearGradient>
+              </defs>
+              <XAxis dataKey="day" tick={{ fontSize: 10, fill: "var(--color-muted)" }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 10, fill: "var(--color-muted)" }} tickLine={false} axisLine={false}
+                tickFormatter={(v: number) => `$${v.toFixed(2)}`} />
+              <Tooltip content={<CustomTooltip />} cursor={{ stroke: "var(--color-border)", strokeWidth: 1 }} />
+              <Area type="monotone" dataKey="earned" name="Earned"
+                fill="url(#earnGradient)" stroke="#00C896" strokeWidth={2.5}
+                dot={false} activeDot={{ r: 5, fill: "#00C896", stroke: "#fff", strokeWidth: 2 }}
+                isAnimationActive animationDuration={300} />
+              <Line type="monotone" dataKey="costs" name="Costs"
+                stroke="#F97316" strokeWidth={2} strokeDasharray="5 3"
+                dot={false} activeDot={{ r: 5, fill: "#F97316", stroke: "#fff", strokeWidth: 2 }}
+                isAnimationActive animationDuration={300} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </>
+      )}
     </div>
   );
 }

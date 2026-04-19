@@ -1,32 +1,55 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Check, X, Bot, Clock } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Check, X, Bot, Clock, Pencil } from "lucide-react";
 import { api } from "@/lib/api";
 
-const ACTIONS = [
-  { id: "trade",    label: "Trade currencies",        enabled: true  },
-  { id: "savings",  label: "Move to savings",         enabled: true  },
-  { id: "withdraw", label: "Withdraw from savings",   enabled: true  },
-  { id: "new_fx",   label: "Trade to new currencies", enabled: false },
+const DEFAULT_ACTIONS = [
+  { id: "trade",    label: "Trade currencies",        sub: "Agent can swap XLM ↔ USDC",              enabled: true  },
+  { id: "savings",  label: "Move to savings",         sub: "Deposit idle funds into yield vault",     enabled: true  },
+  { id: "withdraw", label: "Withdraw from savings",   sub: "Pull funds back to spending wallet",      enabled: true  },
+  { id: "new_fx",   label: "Trade to new currencies", sub: "Disabled — coming soon",                  enabled: false },
 ];
 
-function ActionToggle({ label, enabled, onChange }: { label: string; enabled: boolean; onChange: () => void }) {
+type Action = typeof DEFAULT_ACTIONS[number];
+
+function loadActions(): Action[] {
+  if (typeof window === "undefined") return DEFAULT_ACTIONS;
+  try {
+    const stored = localStorage.getItem("agentfi:allowedActions");
+    if (stored) return JSON.parse(stored) as Action[];
+  } catch { /* ignore */ }
+  return DEFAULT_ACTIONS;
+}
+
+function saveActions(actions: Action[]) {
+  localStorage.setItem("agentfi:allowedActions", JSON.stringify(actions));
+}
+
+function loadCap(): number {
+  if (typeof window === "undefined") return 10;
+  return parseFloat(localStorage.getItem("agentfi:dailyCap") ?? "10") || 10;
+}
+
+function ActionToggle({ label, sub, enabled, onChange }: { label: string; sub: string; enabled: boolean; onChange: () => void }) {
   return (
-    <div className="flex items-center justify-between py-0.5">
-      <div className="flex items-center gap-2.5">
-        <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+    <div className="flex items-center justify-between py-1">
+      <div className="flex items-start gap-2.5">
+        <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0 mt-0.5"
           style={{ background: enabled ? "rgba(0,200,150,0.15)" : "var(--color-border)" }}>
           {enabled
             ? <Check size={11} color="var(--color-earn)" strokeWidth={3} />
             : <X size={11} color="var(--color-muted)" strokeWidth={2.5} />}
         </div>
-        <span className="text-sm" style={{ color: enabled ? "var(--color-text)" : "var(--color-muted)" }}>
-          {label}
-        </span>
+        <div>
+          <span className="text-sm block" style={{ color: enabled ? "var(--color-text)" : "var(--color-muted)" }}>
+            {label}
+          </span>
+          <span className="text-xs" style={{ color: "var(--color-muted)" }}>{sub}</span>
+        </div>
       </div>
       <button onClick={onChange}
-        className="relative w-10 h-5 rounded-full transition-all duration-300 shrink-0"
+        className="relative w-10 h-5 rounded-full transition-all duration-300 shrink-0 ml-3"
         style={{ background: enabled ? "var(--color-earn)" : "var(--color-border)" }}>
         <span className="absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform duration-300"
           style={{ transform: enabled ? "translateX(20px)" : "translateX(0)" }} />
@@ -35,29 +58,23 @@ function ActionToggle({ label, enabled, onChange }: { label: string; enabled: bo
   );
 }
 
-interface BudgetState {
-  dailyLimit: number;
-  spentToday: number;
-  resetsIn: string;
-}
-
 export function LimitsPanel() {
   const [agentActive, setAgentActive] = useState(true);
   const [ticking,     setTicking]     = useState(false);
-  const [actions,     setActions]     = useState(ACTIONS);
-  const [budget,      setBudget]      = useState<BudgetState>({ dailyLimit: 10, spentToday: 0, resetsIn: "24h 0m" });
+  const [actions,     setActions]     = useState<Action[]>(DEFAULT_ACTIONS);
+  const [dailyCap,    setDailyCap]    = useState(10);
+  const [editingCap,  setEditingCap]  = useState(false);
+  const [capInput,    setCapInput]    = useState("10");
   const [loading,     setLoading]     = useState(true);
+  const [resetsIn,    setResetsIn]    = useState("—");
+  const capRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const status = await api.agentStatus();
-        setAgentActive(status.running);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+    // Load persisted values
+    setActions(loadActions());
+    const cap = loadCap();
+    setDailyCap(cap);
+    setCapInput(String(cap));
 
     // Compute reset time (midnight UTC)
     const now = new Date();
@@ -66,8 +83,21 @@ export function LimitsPanel() {
     const msLeft = midnight.getTime() - now.getTime();
     const h = Math.floor(msLeft / 3_600_000);
     const m = Math.floor((msLeft % 3_600_000) / 60_000);
-    setBudget((b) => ({ ...b, resetsIn: `${h}h ${m}m` }));
+    setResetsIn(`${h}h ${m}m`);
+
+    api.agentStatus()
+      .then((s) => setAgentActive(s.running))
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
+
+  const handleToggleAction = (id: string) => {
+    setActions((prev) => {
+      const next = prev.map((a) => a.id === id ? { ...a, enabled: !a.enabled } : a);
+      saveActions(next);
+      return next;
+    });
+  };
 
   const handleToggleAgent = async () => {
     if (ticking) return;
@@ -80,7 +110,22 @@ export function LimitsPanel() {
     }
   };
 
-  const pct = Math.round((budget.spentToday / budget.dailyLimit) * 100);
+  const commitCap = () => {
+    const val = parseFloat(capInput);
+    if (!isNaN(val) && val > 0) {
+      setDailyCap(val);
+      localStorage.setItem("agentfi:dailyCap", String(val));
+    } else {
+      setCapInput(String(dailyCap));
+    }
+    setEditingCap(false);
+  };
+
+  useEffect(() => {
+    if (editingCap) capRef.current?.focus();
+  }, [editingCap]);
+
+  const pct = 0; // spent today — hardcoded until budget API exposes this
 
   return (
     <div className="flex flex-col gap-4">
@@ -88,20 +133,37 @@ export function LimitsPanel() {
       <div className="card flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold">Daily Spending Cap</h2>
-          <span className="text-sm font-semibold"
-            style={{ color: pct > 80 ? "var(--color-spend)" : "var(--color-earn)" }}>
-            ${budget.spentToday.toFixed(2)} / ${budget.dailyLimit.toFixed(2)}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-semibold" style={{ color: "var(--color-earn)" }}>
+              $0.00 /
+            </span>
+            {editingCap ? (
+              <input ref={capRef} type="number" value={capInput}
+                onChange={(e) => setCapInput(e.target.value)}
+                onBlur={commitCap}
+                onKeyDown={(e) => e.key === "Enter" && commitCap()}
+                className="w-16 text-sm font-semibold text-right bg-transparent outline-none border-b"
+                style={{ color: "var(--color-earn)", borderColor: "var(--color-earn)" }}
+              />
+            ) : (
+              <button onClick={() => setEditingCap(true)}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+                style={{ color: "var(--color-earn)" }}>
+                <span className="text-sm font-semibold">${dailyCap.toFixed(2)}</span>
+                <Pencil size={10} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
         </div>
         <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: "var(--color-border)" }}>
           <div className="h-full rounded-full transition-all duration-500"
             style={{ width: `${pct}%`, background: pct > 80 ? "var(--color-spend)" : "var(--gradient-earn)" }} />
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs" style={{ color: "var(--color-muted)" }}>{pct}% used</span>
+          <span className="text-xs" style={{ color: "var(--color-muted)" }}>{pct}% used today</span>
           <div className="flex items-center gap-1" style={{ color: "var(--color-muted)" }}>
             <Clock size={11} strokeWidth={2} />
-            <span className="text-xs">Resets in {budget.resetsIn}</span>
+            <span className="text-xs">Resets in {resetsIn}</span>
           </div>
         </div>
       </div>
@@ -109,10 +171,10 @@ export function LimitsPanel() {
       {/* Allowed actions */}
       <div className="card flex flex-col gap-3">
         <h2 className="text-sm font-semibold">Allowed Actions</h2>
-        <div className="flex flex-col gap-2.5">
+        <div className="flex flex-col gap-3">
           {actions.map((action) => (
-            <ActionToggle key={action.id} label={action.label} enabled={action.enabled}
-              onChange={() => setActions((prev) => prev.map((a) => a.id === action.id ? { ...a, enabled: !a.enabled } : a))} />
+            <ActionToggle key={action.id} label={action.label} sub={action.sub} enabled={action.enabled}
+              onChange={() => handleToggleAction(action.id)} />
           ))}
         </div>
       </div>
@@ -129,6 +191,7 @@ export function LimitsPanel() {
             <p className="text-xs mt-0.5" style={{ color: agentActive ? "var(--color-earn)" : "var(--color-muted)" }}>
               {loading ? "Loading…" : ticking ? "Thinking…" : agentActive ? "Running" : "Paused"}
             </p>
+            <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>Llama 3.3-70b via Groq</p>
           </div>
         </div>
         <button onClick={handleToggleAgent} disabled={loading || ticking}

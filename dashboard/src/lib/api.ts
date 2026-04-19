@@ -60,6 +60,8 @@ export interface AgentStatusResponse {
   model: string;
   provider: string;
   intervalSeconds: number;
+  lastDecision: { action: string; reason: string; tickedAt: string } | null;
+  nextTickAt: string | null;
 }
 
 export interface VaultApyResponse {

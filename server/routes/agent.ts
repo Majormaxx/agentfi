@@ -23,6 +23,8 @@ router.get("/agent/status", (_req: Request, res: Response) => {
     model: "llama-3.3-70b-versatile",
     provider: "groq",
     intervalSeconds: 300,
+    lastDecision: agentLoop.getLastDecision(),
+    nextTickAt:   agentLoop.getNextTickAt(),
   });
 });
 
