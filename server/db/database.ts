@@ -54,6 +54,20 @@ export function recordTransaction(
   );
 }
 
+export function removeVaultPosition(agentAddress: string, vaultId: string): void {
+  getDb()
+    .prepare("DELETE FROM vault_positions WHERE agent_address = ? AND vault_id = ?")
+    .run(agentAddress, vaultId);
+}
+
+export function updateBudgetLimit(agentAddress: string, dailyLimitUsdc: number): void {
+  getDb().prepare(`
+    INSERT INTO agent_budgets (agent_address, daily_limit_usdc, spent_today_usdc)
+    VALUES (?, ?, 0.0)
+    ON CONFLICT(agent_address) DO UPDATE SET daily_limit_usdc = excluded.daily_limit_usdc
+  `).run(agentAddress, dailyLimitUsdc);
+}
+
 export function upsertVaultPosition(
   id: string,
   agentAddress: string,
@@ -102,17 +116,6 @@ export function getRecentActivity(agentAddress: string, limit = 20): ActivityRow
       "FROM transactions WHERE agent_address = ? ORDER BY created_at DESC LIMIT ?"
     )
     .all(agentAddress, limit) as ActivityRow[];
-}
-
-export function getEarnSpendSummary(agentAddress: string, days = 7): { earned_usdc: number; spent_usdc: number }[] {
-  // Returns one row with total fees spent over `days` days (earn is tracked separately via vault positions).
-  return getDb()
-    .prepare(
-      "SELECT COALESCE(SUM(fee_paid_usdc), 0) AS spent_usdc, 0 AS earned_usdc " +
-      "FROM transactions WHERE agent_address = ? AND status = 'settled' " +
-      "AND created_at >= datetime('now', ?)"
-    )
-    .all(agentAddress, `-${days} days`) as { earned_usdc: number; spent_usdc: number }[];
 }
 
 export interface BudgetRow {

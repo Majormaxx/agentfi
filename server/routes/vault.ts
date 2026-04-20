@@ -5,7 +5,7 @@
 import { Router, Request, Response } from "express";
 import { checkBudget }   from "../middleware/budget.js";
 import { VaultService }  from "../services/VaultService.js";
-import { upsertVaultPosition, recordTransaction } from "../db/database.js";
+import { upsertVaultPosition, removeVaultPosition, recordTransaction } from "../db/database.js";
 import { PRICES }         from "../config.js";
 import { v4 as uuidv4 }  from "uuid";
 
@@ -78,6 +78,7 @@ router.post(
     try {
       const signingKeypair = res.locals.stellarKeypair ?? undefined;
       const result = await vaultService.withdraw({ vaultId, shares, agentAddress }, signingKeypair);
+      removeVaultPosition(agentAddress, vaultId);
       recordTransaction(uuidv4(), agentAddress, "/vault/withdraw", "x402", parseFloat(PRICES.vaultWithdraw), result.txHash, undefined, req.body, result);
       res.json(result);
     } catch (err: unknown) {

@@ -2,6 +2,8 @@
  * Agent control routes
  * GET  /agent/status  — is the loop running, what's the next tick?
  * POST /agent/tick    — trigger one decision cycle immediately
+ * POST /agent/pause   — pause the autonomous loop
+ * POST /agent/resume  — resume the autonomous loop
  */
 import { Router, Request, Response } from "express";
 import rateLimit from "express-rate-limit";
@@ -19,12 +21,13 @@ const tickLimiter = rateLimit({
 
 router.get("/agent/status", (_req: Request, res: Response) => {
   res.json({
-    running: true,
-    model: "llama-3.3-70b-versatile",
-    provider: "groq",
+    running:         agentLoop.isRunning(),
+    paused:          agentLoop.isPaused(),
+    model:           "llama-3.3-70b-versatile",
+    provider:        "groq",
     intervalSeconds: 300,
-    lastDecision: agentLoop.getLastDecision(),
-    nextTickAt:   agentLoop.getNextTickAt(),
+    lastDecision:    agentLoop.getLastDecision(),
+    nextTickAt:      agentLoop.getNextTickAt(),
   });
 });
 
@@ -36,6 +39,16 @@ router.post("/agent/tick", tickLimiter, async (_req: Request, res: Response) => 
     const message = err instanceof Error ? err.message : "Tick failed";
     res.status(500).json({ error: "TICK_FAILED", message });
   }
+});
+
+router.post("/agent/pause", (_req: Request, res: Response) => {
+  agentLoop.pause();
+  res.json({ paused: true });
+});
+
+router.post("/agent/resume", (_req: Request, res: Response) => {
+  agentLoop.resume();
+  res.json({ paused: false, nextTickAt: agentLoop.getNextTickAt() });
 });
 
 export default router;

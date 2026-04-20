@@ -56,7 +56,7 @@ export default function SetupPage() {
         </div>
         <h1 className="text-2xl font-bold tracking-tight">Welcome to AgentFi</h1>
         <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--color-muted)" }}>
-          Let your AI agent earn interest and trade —<br />while you stay in control.
+          Let your AI agent earn interest and trade<br />while you stay in control.
         </p>
       </div>
 

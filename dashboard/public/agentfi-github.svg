@@ -1,0 +1,47 @@
+<svg width="500" height="500" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C896"/>
+      <stop offset="100%" stop-color="#00A8D4"/>
+    </linearGradient>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F1117"/>
+      <stop offset="100%" stop-color="#1A1D27"/>
+    </linearGradient>
+  </defs>
+  <!-- Dark background (matches dark mode, looks great on GitHub) -->
+  <rect width="500" height="500" fill="url(#bg)"/>
+  <!-- Subtle grid pattern -->
+  <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(0,200,150,0.06)" stroke-width="1"/>
+  </pattern>
+  <rect width="500" height="500" fill="url(#grid)"/>
+  <!-- Glow behind icon -->
+  <radialGradient id="glow" cx="50%" cy="45%" r="35%">
+    <stop offset="0%" stop-color="rgba(0,200,150,0.2)"/>
+    <stop offset="100%" stop-color="transparent"/>
+  </radialGradient>
+  <rect width="500" height="500" fill="url(#glow)"/>
+  <!-- Icon rounded square -->
+  <rect x="160" y="70" width="180" height="180" rx="38" fill="url(#g)"/>
+  <!-- A lettermark inside icon -->
+  <g stroke="white" stroke-width="19" stroke-linecap="round" fill="none" transform="translate(160,70)">
+    <path d="M 38 148 L 90 32 L 142 148" stroke-linejoin="round"/>
+    <line x1="58" y1="104" x2="122" y2="104"/>
+  </g>
+  <!-- Spark dot -->
+  <circle cx="250" cy="75" r="5" fill="white" opacity="0.85"/>
+  <!-- Wordmark -->
+  <text x="250" y="315" font-family="'Inter', -apple-system, system-ui, sans-serif" font-size="52" font-weight="700" fill="white" text-anchor="middle" letter-spacing="-1.5">Agent<tspan fill="#00C896">Fi</tspan></text>
+  <!-- Tagline -->
+  <text x="250" y="358" font-family="'Inter', -apple-system, system-ui, sans-serif" font-size="16" font-weight="400" fill="rgba(156,163,175,1)" text-anchor="middle" letter-spacing="0.5">AI-powered yield on Stellar</text>
+  <!-- Bottom pills -->
+  <g transform="translate(250,405)">
+    <rect x="-130" y="-16" width="80" height="28" rx="14" fill="rgba(0,200,150,0.12)" stroke="rgba(0,200,150,0.3)" stroke-width="1"/>
+    <text x="-90" y="0" font-family="sans-serif" font-size="11" font-weight="600" fill="#00C896" text-anchor="middle" dominant-baseline="central">Stellar</text>
+    <rect x="-38" y="-16" width="76" height="28" rx="14" fill="rgba(99,102,241,0.12)" stroke="rgba(99,102,241,0.3)" stroke-width="1"/>
+    <text x="0" y="0" font-family="sans-serif" font-size="11" font-weight="600" fill="#818CF8" text-anchor="middle" dominant-baseline="central">Groq AI</text>
+    <rect x="50" y="-16" width="80" height="28" rx="14" fill="rgba(249,115,22,0.12)" stroke="rgba(249,115,22,0.3)" stroke-width="1"/>
+    <text x="90" y="0" font-family="sans-serif" font-size="11" font-weight="600" fill="#F97316" text-anchor="middle" dominant-baseline="central">DeFi Yield</text>
+  </g>
+</svg>

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { Home, PieChart, SlidersHorizontal } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/",          label: "Home",      Icon: Home },
+  { href: "/app",        label: "Home",      Icon: Home },
   { href: "/portfolio", label: "Portfolio", Icon: PieChart },
   { href: "/limits",    label: "Limits",    Icon: SlidersHorizontal },
 ];

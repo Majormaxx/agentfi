@@ -1,20 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Coins, Landmark, TrendingUp, ArrowDownToLine, Plus, RefreshCw, X, Loader2 } from "lucide-react";
 import { usePrivy } from "@privy-io/react-auth";
 import { api, AGENT_ADDRESS, type PositionsResponse, type VaultApyResponse } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
+const VAULT_ID = "defindex-blend-usdc-v1";
+
 // ── Deposit modal ──────────────────────────────────────────────────────────────
 function DepositModal({
-  xlm, apy, onClose, getToken, authenticated, login,
+  xlm, apy, agentAddress, onClose, onSuccess, getToken, authenticated, login,
 }: {
-  xlm: number; apy: VaultApyResponse | null; onClose: () => void;
+  xlm: number; apy: VaultApyResponse | null; agentAddress: string;
+  onClose: () => void; onSuccess: () => void;
   getToken: () => Promise<string | null>; authenticated: boolean; login: () => void;
 }) {
-  const [amount,   setAmount]   = useState("");
-  const [working,  setWorking]  = useState(false);
+  const [amount,  setAmount]  = useState("");
+  const [working, setWorking] = useState(false);
   const toast = useToast();
 
   const handleConfirm = async () => {
@@ -27,8 +30,9 @@ function DepositModal({
       const token = await getToken();
       if (!token) { login(); return; }
       const stroops = String(Math.floor(amountNum * 1e7));
-      await api.vaultDeposit("defindex-blend-usdc-v1", stroops, token);
+      await api.vaultDeposit(VAULT_ID, stroops, token, agentAddress);
       toast.show(`Deposited ${amountNum} XLM into savings vault!`, "success");
+      onSuccess();
       onClose();
     } catch (err: unknown) {
       toast.show(err instanceof Error ? err.message : "Deposit failed", "error");
@@ -37,7 +41,9 @@ function DepositModal({
     }
   };
 
-  const est = parseFloat(amount || "0") * 0.10;
+  const xlmUsdEstimate = apy
+    ? parseFloat(amount || "0") * (parseFloat(apy.tvl) > 0 ? 0.10 : 0.10)
+    : parseFloat(amount || "0") * 0.10;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
@@ -68,7 +74,7 @@ function DepositModal({
           </div>
           {parseFloat(amount) > 0 && (
             <p className="text-xs pl-1" style={{ color: "var(--color-muted)" }}>
-              ≈ ${est.toFixed(2)} USDC (est. at $0.10/XLM)
+              ≈ ${xlmUsdEstimate.toFixed(2)} USDC (est.)
             </p>
           )}
         </div>
@@ -90,13 +96,12 @@ function DepositModal({
           </div>
         )}
 
-        {/* Auth status */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
           style={{ background: authenticated ? "rgba(0,200,150,0.08)" : "rgba(249,115,22,0.08)" }}>
           <div className="w-1.5 h-1.5 rounded-full"
             style={{ background: authenticated ? "var(--color-earn)" : "var(--color-spend)" }} />
           <span style={{ color: authenticated ? "var(--color-earn)" : "var(--color-spend)" }}>
-            {authenticated ? "Signed in — agent wallet ready" : "Sign in to authorize"}
+            {authenticated ? "Signed in. Agent wallet ready." : "Sign in to authorize"}
           </span>
         </div>
 
@@ -119,9 +124,10 @@ function DepositModal({
 
 // ── Withdraw modal ─────────────────────────────────────────────────────────────
 function WithdrawModal({
-  vaultValue, onClose, getToken, authenticated, login,
+  vaultValue, agentAddress, onClose, onSuccess, getToken, authenticated, login,
 }: {
-  vaultValue: number; onClose: () => void;
+  vaultValue: number; agentAddress: string;
+  onClose: () => void; onSuccess: () => void;
   getToken: () => Promise<string | null>; authenticated: boolean; login: () => void;
 }) {
   const [amount,  setAmount]  = useState("");
@@ -137,8 +143,9 @@ function WithdrawModal({
       const token = await getToken();
       if (!token) { login(); return; }
       const shares = String(Math.floor(amountNum * 1e7));
-      await api.vaultWithdraw("defindex-blend-usdc-v1", shares, token);
+      await api.vaultWithdraw(VAULT_ID, shares, token, agentAddress);
       toast.show(`Withdrew $${amountNum} from savings vault!`, "success");
+      onSuccess();
       onClose();
     } catch (err: unknown) {
       toast.show(err instanceof Error ? err.message : "Withdrawal failed", "error");
@@ -179,13 +186,12 @@ function WithdrawModal({
           </p>
         </div>
 
-        {/* Auth status */}
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
           style={{ background: authenticated ? "rgba(0,200,150,0.08)" : "rgba(249,115,22,0.08)" }}>
           <div className="w-1.5 h-1.5 rounded-full"
             style={{ background: authenticated ? "var(--color-earn)" : "var(--color-spend)" }} />
           <span style={{ color: authenticated ? "var(--color-earn)" : "var(--color-spend)" }}>
-            {authenticated ? "Signed in — agent wallet ready" : "Sign in to authorize"}
+            {authenticated ? "Signed in. Agent wallet ready." : "Sign in to authorize"}
           </span>
         </div>
 
@@ -227,25 +233,22 @@ export default function PortfolioPage() {
     });
   }, [authenticated, getAccessToken]);
 
-  // Use per-user address once provisioned, fall back to operator address
   const agentAddress = userAddress ?? AGENT_ADDRESS;
 
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      try {
-        const [pos, apyData] = await Promise.all([
-          api.positions(agentAddress),
-          api.vaultApy("defindex-blend-usdc-v1", agentAddress),
-        ]);
-        setPositions(pos);
-        setApy(apyData);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [pos, apyData] = await Promise.all([
+        api.positions(agentAddress),
+        api.vaultApy(VAULT_ID, agentAddress),
+      ]);
+      setPositions(pos);
+      setApy(apyData);
+    } catch { /* backend offline, keep stale data */ }
+    finally { setLoading(false); }
   }, [agentAddress]);
+
+  useEffect(() => { refresh(); }, [refresh]);
 
   const usdc       = positions ? parseFloat(positions.walletBalance.USDC) : 0;
   const xlm        = positions ? parseFloat(positions.walletBalance.XLM)  : 0;
@@ -254,26 +257,30 @@ export default function PortfolioPage() {
   const yieldAmt   = vault ? parseFloat(vault.unrealizedYield) : 0;
   const total      = positions ? parseFloat(positions.totalValueUSDC) : 0;
   const allocPct   = total > 0 ? Math.round((vaultValue / total) * 100) : 0;
-  const xlmInUsdc  = xlm * 0.10;
+  // XLM→USDC estimate: back-calculated from backend totalValueUSDC when possible
+  const xlmInUsdc  = total > 0 && usdc >= 0 ? Math.max(0, total - usdc - vaultValue) : xlm * 0.10;
 
   return (
     <>
       {showDeposit && (
-        <DepositModal xlm={xlm} apy={apy} onClose={() => setShowDeposit(false)}
+        <DepositModal xlm={xlm} apy={apy} agentAddress={agentAddress}
+          onClose={() => setShowDeposit(false)} onSuccess={refresh}
           getToken={getAccessToken} authenticated={authenticated} login={login} />
       )}
       {showWithdraw && (
-        <WithdrawModal vaultValue={vaultValue} onClose={() => setShowWithdraw(false)}
+        <WithdrawModal vaultValue={vaultValue} agentAddress={agentAddress}
+          onClose={() => setShowWithdraw(false)} onSuccess={refresh}
           getToken={getAccessToken} authenticated={authenticated} login={login} />
       )}
 
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold">Portfolio</h1>
-          <button onClick={() => window.location.reload()}
-            className="p-1.5 rounded-lg transition-opacity hover:opacity-70"
+          <button onClick={refresh} disabled={loading}
+            className="p-1.5 rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40"
             style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)" }}>
-            <RefreshCw size={13} strokeWidth={2} style={{ color: "var(--color-muted)" }} />
+            <RefreshCw size={13} strokeWidth={2} className={loading ? "animate-spin" : ""}
+              style={{ color: "var(--color-muted)" }} />
           </button>
         </div>
 
@@ -316,7 +323,7 @@ export default function PortfolioPage() {
                 <div className="h-full rounded-full" style={{ width: `${allocPct}%`, background: "var(--gradient-earn)" }} />
               </div>
               <p className="text-xs" style={{ color: "var(--color-muted)" }}>
-                {allocPct > 0 ? `${allocPct}% allocated to savings` : "0% in savings — move funds to start earning"}
+                {allocPct > 0 ? `${allocPct}% allocated to savings` : "0% in savings. Move funds to start earning."}
               </p>
             </>
           )}
@@ -353,13 +360,12 @@ export default function PortfolioPage() {
                     style={{ background: "rgba(0,200,150,0.1)" }}>
                     <TrendingUp size={14} color="var(--color-earn)" strokeWidth={2.5} />
                     <p className="text-lg font-bold leading-none mt-1" style={{ color: "var(--color-earn)" }}>
-                      {apy ? `${apy.currentAPY.toFixed(1)}%` : "—"}
+                      {apy ? `${apy.currentAPY.toFixed(1)}%` : "..."}
                     </p>
                     <p className="text-[10px] font-medium" style={{ color: "var(--color-earn)" }}>APY</p>
                   </div>
                 </div>
 
-                {/* Trust signals */}
                 {apy && (
                   <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>
                     DeFindex · ${(parseInt(apy.tvl) / 1e7).toLocaleString("en-US", { maximumFractionDigits: 0 })}k TVL
@@ -403,6 +409,7 @@ export default function PortfolioPage() {
             {apy && <p>TVL: {parseInt(apy.tvl).toLocaleString()} stroops</p>}
             {apy && <p>Utilization: {(apy.utilizationRate * 100).toFixed(0)}%</p>}
             {vault && <p>Shares: {vault.shares}</p>}
+            {userAddress && <p>Your wallet: {userAddress.slice(0, 8)}…{userAddress.slice(-6)}</p>}
             <a href="https://stellar.expert/explorer/testnet" target="_blank" rel="noopener noreferrer"
               className="underline" style={{ color: "var(--color-earn)" }}>
               View on Stellar Explorer →

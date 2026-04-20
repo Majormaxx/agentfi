@@ -27,6 +27,21 @@ async function post<T>(path: string, body?: unknown, token?: string): Promise<T>
   return res.json();
 }
 
+async function put<T>(path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "PUT",
+    headers,
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let msg = `${res.status} ${res.statusText}`;
+    try { const j = await res.json(); msg = j.message ?? msg; } catch { /* ignore */ }
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 // ── Response types ─────────────────────────────────────────────────────────────
 
 export interface PositionsResponse {
@@ -65,6 +80,7 @@ export interface ActivityResponse {
 
 export interface AgentStatusResponse {
   running: boolean;
+  paused: boolean;
   model: string;
   provider: string;
   intervalSeconds: number;
@@ -101,16 +117,16 @@ export const api = {
     get<PositionsResponse>("/positions", { agentAddress }),
 
   activity: (limit = 10, agentAddress = AGENT_ADDRESS) =>
-    get<ActivityResponse>("/activity", {
-      agentAddress,
-      limit: String(limit),
-    }),
+    get<ActivityResponse>("/activity", { agentAddress, limit: String(limit) }),
 
   walletMe: (token: string) =>
     get<WalletMeResponse>("/wallet/me", undefined, token),
 
-  budget: () =>
-    get<BudgetResponse>("/budget", { agentAddress: AGENT_ADDRESS }),
+  budget: (agentAddress = AGENT_ADDRESS) =>
+    get<BudgetResponse>("/budget", { agentAddress }),
+
+  setDailyLimit: (agentAddress: string, dailyLimit: number) =>
+    put<{ agentAddress: string; dailyLimit: number }>("/budget/limit", { agentAddress, dailyLimit }),
 
   agentStatus: () =>
     get<AgentStatusResponse>("/agent/status"),
@@ -118,20 +134,26 @@ export const api = {
   agentTick: () =>
     post<{ action: string; result?: unknown; reason?: string }>("/agent/tick"),
 
+  agentPause: () =>
+    post<{ paused: boolean }>("/agent/pause"),
+
+  agentResume: () =>
+    post<{ paused: boolean; nextTickAt: string | null }>("/agent/resume"),
+
   vaultApy: (vaultId: string, agentAddress = AGENT_ADDRESS) =>
     get<VaultApyResponse>("/vault/apy", { vaultId, agentAddress }),
 
-  vaultDeposit: (vaultId: string, amount: string, token: string) =>
+  vaultDeposit: (vaultId: string, amount: string, token: string, agentAddress = AGENT_ADDRESS) =>
     post<{ txHash: string; sharesReceived: string; currentAPY: string }>(
       "/vault/deposit",
-      { vaultId, amount, agentAddress: AGENT_ADDRESS },
+      { vaultId, amount, agentAddress },
       token
     ),
 
-  vaultWithdraw: (vaultId: string, shares: string, token: string) =>
+  vaultWithdraw: (vaultId: string, shares: string, token: string, agentAddress = AGENT_ADDRESS) =>
     post<{ txHash: string; amountReceived: string; yieldEarned: string }>(
       "/vault/withdraw",
-      { vaultId, shares, agentAddress: AGENT_ADDRESS },
+      { vaultId, shares, agentAddress },
       token
     ),
 };

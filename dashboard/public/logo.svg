@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00C896"/>
+      <stop offset="100%" stop-color="#00A8D4"/>
+    </linearGradient>
+  </defs>
+  <!-- Rounded square background -->
+  <rect width="512" height="512" rx="108" fill="url(#g)"/>
+  <!-- A lettermark -->
+  <g stroke="white" stroke-width="54" stroke-linecap="round" fill="none">
+    <path d="M 108 422 L 256 92 L 404 422" stroke-linejoin="round"/>
+    <line x1="165" y1="296" x2="347" y2="296"/>
+  </g>
+  <!-- Spark dot at apex -->
+  <circle cx="256" cy="70" r="14" fill="white" opacity="0.9"/>
+</svg>

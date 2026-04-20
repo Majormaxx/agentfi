@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Check, X, Bot, Clock, Pencil } from "lucide-react";
-import { api } from "@/lib/api";
+import { api, AGENT_ADDRESS } from "@/lib/api";
 
 const DEFAULT_ACTIONS = [
   { id: "trade",    label: "Trade currencies",        sub: "Agent can swap XLM ↔ USDC",              enabled: true  },
   { id: "savings",  label: "Move to savings",         sub: "Deposit idle funds into yield vault",     enabled: true  },
   { id: "withdraw", label: "Withdraw from savings",   sub: "Pull funds back to spending wallet",      enabled: true  },
-  { id: "new_fx",   label: "Trade to new currencies", sub: "Disabled — coming soon",                  enabled: false },
+  { id: "new_fx",   label: "Trade to new currencies", sub: "Disabled, coming soon",                   enabled: false },
 ];
 
 type Action = typeof DEFAULT_ACTIONS[number];
@@ -24,11 +24,6 @@ function loadActions(): Action[] {
 
 function saveActions(actions: Action[]) {
   localStorage.setItem("agentfi:allowedActions", JSON.stringify(actions));
-}
-
-function loadCap(): number {
-  if (typeof window === "undefined") return 10;
-  return parseFloat(localStorage.getItem("agentfi:dailyCap") ?? "10") || 10;
 }
 
 function ActionToggle({ label, sub, enabled, onChange }: { label: string; sub: string; enabled: boolean; onChange: () => void }) {
@@ -60,30 +55,30 @@ function ActionToggle({ label, sub, enabled, onChange }: { label: string; sub: s
 
 export function LimitsPanel() {
   const [agentActive, setAgentActive] = useState(true);
-  const [ticking,     setTicking]     = useState(false);
+  const [toggling,    setToggling]    = useState(false);
   const [actions,     setActions]     = useState<Action[]>(DEFAULT_ACTIONS);
   const [dailyCap,    setDailyCap]    = useState(10);
   const [editingCap,  setEditingCap]  = useState(false);
   const [capInput,    setCapInput]    = useState("10");
+  const [savingCap,   setSavingCap]   = useState(false);
   const [loading,     setLoading]     = useState(true);
-  const [resetsIn,    setResetsIn]    = useState("—");
+  const [resetsIn,    setResetsIn]    = useState("...");
   const [spentToday,  setSpentToday]  = useState(0);
   const [budgetPct,   setBudgetPct]   = useState(0);
   const capRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Load persisted values
     setActions(loadActions());
-    const cap = loadCap();
-    setDailyCap(cap);
-    setCapInput(String(cap));
 
     Promise.all([
       api.agentStatus().catch(() => null),
       api.budget().catch(() => null),
     ]).then(([status, budget]) => {
-      if (status) setAgentActive(status.running);
+      if (status) setAgentActive(status.running && !status.paused);
       if (budget) {
+        const cap = budget.dailyLimit;
+        setDailyCap(cap);
+        setCapInput(String(cap));
         setSpentToday(budget.spentToday);
         setBudgetPct(budget.pct);
         setResetsIn(budget.resetsIn);
@@ -100,25 +95,43 @@ export function LimitsPanel() {
   };
 
   const handleToggleAgent = async () => {
-    if (ticking) return;
-    setTicking(true);
+    if (toggling) return;
+    setToggling(true);
     try {
-      await api.agentTick();
-      setAgentActive((v) => !v);
+      if (agentActive) {
+        await api.agentPause();
+        setAgentActive(false);
+      } else {
+        await api.agentResume();
+        setAgentActive(true);
+      }
+    } catch {
+      // revert optimistic update on failure
+      const status = await api.agentStatus().catch(() => null);
+      if (status) setAgentActive(status.running && !status.paused);
     } finally {
-      setTicking(false);
+      setToggling(false);
     }
   };
 
-  const commitCap = () => {
+  const commitCap = async () => {
     const val = parseFloat(capInput);
-    if (!isNaN(val) && val > 0) {
-      setDailyCap(val);
-      localStorage.setItem("agentfi:dailyCap", String(val));
-    } else {
+    if (isNaN(val) || val <= 0) {
       setCapInput(String(dailyCap));
+      setEditingCap(false);
+      return;
     }
     setEditingCap(false);
+    if (val === dailyCap) return;
+    setSavingCap(true);
+    try {
+      await api.setDailyLimit(AGENT_ADDRESS, val);
+      setDailyCap(val);
+    } catch {
+      setCapInput(String(dailyCap));
+    } finally {
+      setSavingCap(false);
+    }
   };
 
   useEffect(() => {
@@ -144,8 +157,8 @@ export function LimitsPanel() {
                 style={{ color: "var(--color-earn)", borderColor: "var(--color-earn)" }}
               />
             ) : (
-              <button onClick={() => setEditingCap(true)}
-                className="flex items-center gap-1 hover:opacity-70 transition-opacity"
+              <button onClick={() => setEditingCap(true)} disabled={savingCap}
+                className="flex items-center gap-1 hover:opacity-70 transition-opacity disabled:opacity-40"
                 style={{ color: "var(--color-earn)" }}>
                 <span className="text-sm font-semibold">${dailyCap.toFixed(2)}</span>
                 <Pencil size={10} strokeWidth={2.5} />
@@ -187,12 +200,12 @@ export function LimitsPanel() {
           <div>
             <p className="text-sm font-semibold">Agent Status</p>
             <p className="text-xs mt-0.5" style={{ color: agentActive ? "var(--color-earn)" : "var(--color-muted)" }}>
-              {loading ? "Loading…" : ticking ? "Thinking…" : agentActive ? "Running" : "Paused"}
+              {loading ? "Loading…" : toggling ? "Updating…" : agentActive ? "Running" : "Paused"}
             </p>
             <p className="text-[10px]" style={{ color: "var(--color-muted)" }}>Llama 3.3-70b via Groq</p>
           </div>
         </div>
-        <button onClick={handleToggleAgent} disabled={loading || ticking}
+        <button onClick={handleToggleAgent} disabled={loading || toggling}
           className="relative w-12 h-6 rounded-full transition-all duration-300 disabled:opacity-40"
           style={{ background: agentActive ? "var(--color-earn)" : "var(--color-border)" }}>
           <span className="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform duration-300"

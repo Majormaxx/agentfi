@@ -4,7 +4,7 @@
  * Public read-only endpoint — consumed by the dashboard Limits panel.
  */
 import { Router, Request, Response } from "express";
-import { getBudgetRow } from "../db/database.js";
+import { getBudgetRow, updateBudgetLimit } from "../db/database.js";
 
 const router = Router();
 
@@ -39,6 +39,18 @@ router.get("/budget", (req: Request, res: Response) => {
     pct:        Math.min(100, (spentToday / row.dailyLimitUsdc) * 100),
     resetsIn:   `${h}h ${m}m`,
   });
+});
+
+router.put("/budget/limit", (req: Request, res: Response) => {
+  const { agentAddress, dailyLimit } = req.body as { agentAddress?: string; dailyLimit?: number };
+
+  if (!agentAddress || dailyLimit === undefined || isNaN(Number(dailyLimit)) || Number(dailyLimit) <= 0) {
+    res.status(400).json({ error: "MISSING_PARAMS", message: "agentAddress and dailyLimit (> 0) are required" });
+    return;
+  }
+
+  updateBudgetLimit(agentAddress, Number(dailyLimit));
+  res.json({ agentAddress, dailyLimit: Number(dailyLimit) });
 });
 
 export default router;

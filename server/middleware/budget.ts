@@ -102,7 +102,7 @@ export function checkBudget(
 
       res.status(403).json({
         error: "BUDGET_EXCEEDED",
-        message: `Daily spending cap reached ($${row.daily_limit_usdc.toFixed(2)} / $${row.daily_limit_usdc.toFixed(2)}). Resets in ${resetIn}.`,
+        message: `Daily spending cap reached ($${row.spent_today_usdc.toFixed(2)} / $${row.daily_limit_usdc.toFixed(2)}). Resets in ${resetIn}.`,
         details: {
           dailyLimit:      row.daily_limit_usdc,
           spentToday:      row.spent_today_usdc,

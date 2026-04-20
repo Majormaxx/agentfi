@@ -39,6 +39,18 @@ export const config = {
   databasePath: optional("DATABASE_PATH", "/tmp/agentfi.db"),
   agentfiBaseUrl: optional("AGENTFI_BASE_URL", "http://localhost:3001"),
 
+  /** Agentic behavior thresholds — all overridable via env vars */
+  agentBehavior: {
+    /** Exit vault if live APY drops below this percentage */
+    apyFloorPct: parseFloat(optional("AGENT_APY_FLOOR_PCT", "5")),
+    /** Compound yield when unrealized USDC gain exceeds this amount */
+    compoundYieldThresholdUsdc: parseFloat(optional("AGENT_COMPOUND_THRESHOLD_USDC", "0.005")),
+    /** Auto-deposit idle USDC when wallet balance exceeds this amount */
+    minAutoDepositUsdc: parseFloat(optional("AGENT_MIN_AUTO_DEPOSIT_USDC", "0.5")),
+    /** Keep this fraction of USDC in wallet for fees when auto-depositing */
+    depositReserveFraction: parseFloat(optional("AGENT_DEPOSIT_RESERVE_FRACTION", "0.05")),
+  },
+
   /** True when all credentials are present — enables real on-chain settlement */
   get isLive(): boolean {
     return !!(

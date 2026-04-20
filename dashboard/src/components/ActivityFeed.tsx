@@ -69,7 +69,7 @@ export function ActivityFeed({ transactions, limit = 5, loading, xlmBalance = 0 
             </p>
           ) : (
             <p className="text-xs mt-1" style={{ color: "var(--color-muted)" }}>
-              No trades yet — agent is analysing market conditions.
+              No trades yet. Agent is analysing market conditions.
             </p>
           )}
         </div>
