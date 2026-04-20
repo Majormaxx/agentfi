@@ -5,7 +5,7 @@ import { Providers }     from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "AgentFi: Let your AI agent earn interest on Stellar",
-  description: "Set up once. Your AI agent finds the best yield on Stellar and earns interest for you, automatically.",
+  description: "AgentFi deploys an autonomous AI agent that monitors Stellar DeFi markets, executes yield strategies, and compounds your returns — 24/7, fully transparent.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
