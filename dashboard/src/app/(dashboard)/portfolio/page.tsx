@@ -6,7 +6,10 @@ import { usePrivy } from "@privy-io/react-auth";
 import { api, AGENT_ADDRESS, type PositionsResponse, type VaultApyResponse } from "@/lib/api";
 import { useToast } from "@/components/Toast";
 
-const VAULT_ID = "defindex-blend-usdc-v1";
+const VAULT_ID_USDC = "defindex-blend-usdc-v1";
+const VAULT_ID_XLM  = "defindex-blend-xlm-v1";
+
+type DepositStrategy = "xlm-direct" | "swap-usdc";
 
 // ── Deposit modal ──────────────────────────────────────────────────────────────
 function DepositModal({
@@ -16,8 +19,9 @@ function DepositModal({
   onClose: () => void; onSuccess: () => void;
   getToken: () => Promise<string | null>; authenticated: boolean; login: () => void;
 }) {
-  const [amount,  setAmount]  = useState("");
-  const [working, setWorking] = useState(false);
+  const [amount,   setAmount]   = useState("");
+  const [working,  setWorking]  = useState(false);
+  const [strategy, setStrategy] = useState<DepositStrategy>("xlm-direct");
   const toast = useToast();
 
   const handleConfirm = async () => {
@@ -30,8 +34,19 @@ function DepositModal({
       const token = await getToken();
       if (!token) { login(); return; }
       const stroops = String(Math.floor(amountNum * 1e7));
-      await api.vaultDeposit(VAULT_ID, stroops, token, agentAddress);
-      toast.show(`Deposited ${amountNum} XLM into savings vault!`, "success");
+
+      if (strategy === "xlm-direct") {
+        // Direct deposit: XLM → XLM vault
+        await api.vaultDeposit(VAULT_ID_XLM, stroops, token, agentAddress);
+        toast.show(`Deposited ${amountNum} XLM into XLM vault!`, "success");
+      } else {
+        // Swap + deposit: XLM → USDC → USDC vault (two live testnet txs)
+        await api.vaultSwapAndDeposit(
+          "XLM:native", stroops, 1.0, VAULT_ID_USDC, token, agentAddress,
+        );
+        toast.show(`Swapped ${amountNum} XLM to USDC and deposited into vault!`, "success");
+      }
+
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -41,9 +56,7 @@ function DepositModal({
     }
   };
 
-  const xlmUsdEstimate = apy
-    ? parseFloat(amount || "0") * (parseFloat(apy.tvl) > 0 ? 0.10 : 0.10)
-    : parseFloat(amount || "0") * 0.10;
+  const xlmUsdEstimate = parseFloat(amount || "0") * 0.10;
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center" style={{ background: "rgba(0,0,0,0.5)" }}>
@@ -54,6 +67,26 @@ function DepositModal({
           <button onClick={onClose} className="p-1 rounded-lg hover:opacity-70" style={{ color: "var(--color-muted)" }}>
             <X size={18} />
           </button>
+        </div>
+
+        {/* Strategy selector */}
+        <div className="flex gap-2">
+          {([
+            { key: "xlm-direct" as const, label: "XLM Vault", desc: "Direct deposit" },
+            { key: "swap-usdc" as const, label: "USDC Vault", desc: "Auto-swap + deposit" },
+          ]).map(({ key, label, desc }) => (
+            <button key={key} onClick={() => setStrategy(key)}
+              className="flex-1 py-2.5 px-3 rounded-xl text-left transition-all duration-150"
+              style={{
+                background: strategy === key ? "rgba(0,200,150,0.1)" : "var(--color-bg)",
+                border: `1.5px solid ${strategy === key ? "rgba(0,200,150,0.4)" : "var(--color-border)"}`,
+              }}>
+              <p className="text-xs font-semibold" style={{ color: strategy === key ? "#00C896" : "var(--color-text)" }}>
+                {label}
+              </p>
+              <p className="text-[10px] mt-0.5" style={{ color: "var(--color-muted)" }}>{desc}</p>
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -72,9 +105,9 @@ function DepositModal({
               MAX
             </button>
           </div>
-          {parseFloat(amount) > 0 && (
+          {parseFloat(amount) > 0 && strategy === "swap-usdc" && (
             <p className="text-xs pl-1" style={{ color: "var(--color-muted)" }}>
-              ≈ ${xlmUsdEstimate.toFixed(2)} USDC (est.)
+              &#8776; ${xlmUsdEstimate.toFixed(2)} USDC after swap (est.)
             </p>
           )}
         </div>
@@ -83,16 +116,28 @@ function DepositModal({
           <div className="flex items-center justify-between px-4 py-3 rounded-xl"
             style={{ background: "var(--color-bg)", border: "1px solid var(--color-border)" }}>
             <div>
-              <p className="text-xs" style={{ color: "var(--color-muted)" }}>DeFindex Blend USDC</p>
+              <p className="text-xs" style={{ color: "var(--color-muted)" }}>
+                {strategy === "xlm-direct" ? "DeFindex Blend XLM" : "DeFindex Blend USDC"}
+              </p>
               <p className="text-xs mt-0.5" style={{ color: "var(--color-muted)" }}>
                 ${(parseInt(apy.tvl) / 1e7).toLocaleString("en-US", { maximumFractionDigits: 0 })}k TVL
-                · {(apy.utilizationRate * 100).toFixed(0)}% utilised · testnet
+                &middot; {(apy.utilizationRate * 100).toFixed(0)}% utilised &middot; testnet
               </p>
             </div>
             <div className="flex flex-col items-end">
               <p className="text-lg font-bold" style={{ color: "var(--color-earn)" }}>{apy.currentAPY.toFixed(1)}%</p>
               <p className="text-[10px]" style={{ color: "var(--color-earn)" }}>APY</p>
             </div>
+          </div>
+        )}
+
+        {strategy === "swap-usdc" && (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs"
+            style={{ background: "rgba(59,130,246,0.08)" }}>
+            <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#3B82F6" }} />
+            <span style={{ color: "#3B82F6" }}>
+              XLM will be swapped to USDC via Soroswap before depositing
+            </span>
           </div>
         )}
 
@@ -114,7 +159,7 @@ function DepositModal({
           <button onClick={handleConfirm} disabled={working}
             className="flex-1 py-3 rounded-xl text-sm font-semibold hover:opacity-80 active:scale-[0.98] transition-all disabled:opacity-40 flex items-center justify-center gap-2"
             style={{ background: "var(--gradient-earn)", color: "#fff" }}>
-            {working ? <><Loader2 size={14} className="animate-spin" /> Depositing…</> : authenticated ? "Confirm →" : "Sign in →"}
+            {working ? <><Loader2 size={14} className="animate-spin" /> {strategy === "swap-usdc" ? "Swapping..." : "Depositing..."}</> : authenticated ? "Confirm \u2192" : "Sign in \u2192"}
           </button>
         </div>
       </div>
@@ -143,7 +188,7 @@ function WithdrawModal({
       const token = await getToken();
       if (!token) { login(); return; }
       const shares = String(Math.floor(amountNum * 1e7));
-      await api.vaultWithdraw(VAULT_ID, shares, token, agentAddress);
+      await api.vaultWithdraw(VAULT_ID_USDC, shares, token, agentAddress);
       toast.show(`Withdrew $${amountNum} from savings vault!`, "success");
       onSuccess();
       onClose();
@@ -240,7 +285,7 @@ export default function PortfolioPage() {
     try {
       const [pos, apyData] = await Promise.all([
         api.positions(agentAddress),
-        api.vaultApy(VAULT_ID, agentAddress),
+        api.vaultApy(VAULT_ID_USDC, agentAddress),
       ]);
       setPositions(pos);
       setApy(apyData);

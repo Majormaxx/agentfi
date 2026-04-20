@@ -156,4 +156,17 @@ export const api = {
       { vaultId, shares, agentAddress },
       token
     ),
+
+  vaultSwapAndDeposit: (
+    tokenIn: string, amountIn: string, slippage: number,
+    vaultId: string, token: string, agentAddress = AGENT_ADDRESS
+  ) =>
+    post<{
+      swapTxHash: string; depositTxHash: string; amountSwapped: string;
+      sharesReceived: string; currentAPY: string; settledAt: string;
+    }>(
+      "/vault/swap-and-deposit",
+      { tokenIn, amountIn, slippage, vaultId, agentAddress },
+      token
+    ),
 };
