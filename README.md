@@ -7,7 +7,7 @@
 [![Node: ≥20](https://img.shields.io/badge/Node-%E2%89%A520-339933.svg)](https://nodejs.org)
 [![Protocols: x402 + MPP](https://img.shields.io/badge/Protocols-x402%20%2B%20MPP-F97316.svg)](https://x402.org)
 
-> *Make agents earn, not just spend.*
+> _Make agents earn, not just spend._
 
 ---
 
@@ -192,16 +192,16 @@ curl http://localhost:3001/health
 
 All endpoints except `/health` require payment via x402 or MPP. In dev mode (no `AGENTFI_STELLAR_SECRET`), gates are bypassed automatically.
 
-| Endpoint | Method | Price | Description |
-|---|---|---|---|
-| `/health` | GET | Free | Service discovery — lists all endpoints, prices, and protocols |
-| `/swap/quote` | GET | $0.001 USDC | Optimal swap route across Soroswap, Phoenix, Aqua, SDEX |
-| `/swap/execute` | POST | $0.002 USDC | Execute swap; returns tx hash and settlement details |
-| `/vault/deposit` | POST | $0.001 USDC | Deposit into DeFindex yield vault; returns shares received |
-| `/vault/withdraw` | POST | $0.001 USDC | Redeem shares; returns principal + accrued yield |
-| `/vault/apy` | GET | $0.0005 USDC | Current APY, 7d/30d averages, TVL, utilization rate |
-| `/strategy/rebalance` | POST | $0.003 USDC | Compound (harvest + re-deposit) or shift between vaults |
-| `/positions` | GET | $0.0005 USDC | Portfolio snapshot: wallet balances, vault positions, net yield |
+| Endpoint              | Method | Price        | Description                                                     |
+| --------------------- | ------ | ------------ | --------------------------------------------------------------- |
+| `/health`             | GET    | Free         | Service discovery — lists all endpoints, prices, and protocols  |
+| `/swap/quote`         | GET    | $0.001 USDC  | Optimal swap route across Soroswap, Phoenix, Aqua, SDEX         |
+| `/swap/execute`       | POST   | $0.002 USDC  | Execute swap; returns tx hash and settlement details            |
+| `/vault/deposit`      | POST   | $0.001 USDC  | Deposit into DeFindex yield vault; returns shares received      |
+| `/vault/withdraw`     | POST   | $0.001 USDC  | Redeem shares; returns principal + accrued yield                |
+| `/vault/apy`          | GET    | $0.0005 USDC | Current APY, 7d/30d averages, TVL, utilization rate             |
+| `/strategy/rebalance` | POST   | $0.003 USDC  | Compound (harvest + re-deposit) or shift between vaults         |
+| `/positions`          | GET    | $0.0005 USDC | Portfolio snapshot: wallet balances, vault positions, net yield |
 
 ### Example: Get a swap quote
 
@@ -278,9 +278,9 @@ Available MCP tools: `swap_quote`, `swap_execute`, `vault_deposit`, `vault_apy`,
 
 AgentFi is autonomous — not uncontrolled. Every DeFi operation is gated by an **OpenZeppelin Smart Account on Soroban** with two mandatory policies:
 
-| Policy | What it enforces |
-|---|---|
-| `SpendingLimitPolicy` | Max USDC/day the agent can spend on DeFi ops. Resets every 24h. |
+| Policy                    | What it enforces                                                                       |
+| ------------------------- | -------------------------------------------------------------------------------------- |
+| `SpendingLimitPolicy`     | Max USDC/day the agent can spend on DeFi ops. Resets every 24h.                        |
 | `ContractWhitelistPolicy` | Only Soroswap router + DeFindex vault contracts can be called. No arbitrary contracts. |
 
 The operator sets these limits from the dashboard using a plain slider and toggle — no smart contract interaction required. If the daily cap is hit, the agent **pauses gracefully** rather than failing or crashing.
@@ -289,19 +289,19 @@ The operator sets these limits from the dashboard using a plain slider and toggl
 
 ## Tech Stack
 
-| Layer | Technology |
-|---|---|
-| Gateway server | Node.js 20 / TypeScript / Express |
-| x402 payment | `@x402/express`, `@x402/stellar`, `@x402/core` v2.9 |
-| MPP payment | `mppx` v0.5 with Tempo sessions |
-| Swap execution | `@soroswap/sdk` v0.4 |
-| Vault execution | `@defindex/sdk` v0.3 |
-| Stellar SDK | `@stellar/stellar-sdk` v15 |
-| Agent data store | `better-sqlite3` v12 |
-| MCP server | `@modelcontextprotocol/sdk` v1.29 |
-| Operator dashboard | Next.js 14 / React 18 / TailwindCSS |
-| Dashboard auth | Privy SDK (email + passkey → embedded Stellar wallet) |
-| Network | Stellar Testnet (Soroban RPC) |
+| Layer              | Technology                                            |
+| ------------------ | ----------------------------------------------------- |
+| Gateway server     | Node.js 20 / TypeScript / Express                     |
+| x402 payment       | `@x402/express`, `@x402/stellar`, `@x402/core` v2.9   |
+| MPP payment        | `mppx` v0.5 with Tempo sessions                       |
+| Swap execution     | `@soroswap/sdk` v0.4                                  |
+| Vault execution    | `@defindex/sdk` v0.3                                  |
+| Stellar SDK        | `@stellar/stellar-sdk` v15                            |
+| Agent data store   | `better-sqlite3` v12                                  |
+| MCP server         | `@modelcontextprotocol/sdk` v1.29                     |
+| Operator dashboard | Next.js 14 / React 18 / TailwindCSS                   |
+| Dashboard auth     | Privy SDK (email + passkey → embedded Stellar wallet) |
+| Network            | Stellar Testnet (Soroban RPC)                         |
 
 ---
 
@@ -317,31 +317,31 @@ All errors follow a consistent shape:
 }
 ```
 
-| Code | HTTP | Meaning |
-|---|---|---|
-| `PAYMENT_REQUIRED` | 402 | Standard x402/MPP flow — agent must attach payment |
-| `INSUFFICIENT_LIQUIDITY` | 422 | DEX can't fill the order at the requested size |
-| `SLIPPAGE_EXCEEDED` | 422 | Price moved beyond tolerance before settlement |
-| `BUDGET_EXCEEDED` | 403 | Smart account daily spending limit reached |
-| `CONTRACT_NOT_WHITELISTED` | 403 | Target contract not in agent's allowlist |
-| `VAULT_PAUSED` | 503 | DeFindex vault temporarily unavailable |
-| `SETTLEMENT_TIMEOUT` | 504 | Stellar tx didn't confirm within 30s |
+| Code                       | HTTP | Meaning                                            |
+| -------------------------- | ---- | -------------------------------------------------- |
+| `PAYMENT_REQUIRED`         | 402  | Standard x402/MPP flow — agent must attach payment |
+| `INSUFFICIENT_LIQUIDITY`   | 422  | DEX can't fill the order at the requested size     |
+| `SLIPPAGE_EXCEEDED`        | 422  | Price moved beyond tolerance before settlement     |
+| `BUDGET_EXCEEDED`          | 403  | Smart account daily spending limit reached         |
+| `CONTRACT_NOT_WHITELISTED` | 403  | Target contract not in agent's allowlist           |
+| `VAULT_PAUSED`             | 503  | DeFindex vault temporarily unavailable             |
+| `SETTLEMENT_TIMEOUT`       | 504  | Stellar tx didn't confirm within 30s               |
 
 ---
 
 ## Roadmap
 
-| Priority | Feature | Status |
-|---|---|---|
-| P0 | x402 + MPP gateway with all 8 endpoints | ✅ Shipped |
-| P0 | Next.js dashboard (Home, Portfolio, Limits) | ✅ Shipped |
-| P0 | Soroswap 4-protocol swap aggregation | ✅ Shipped |
-| P0 | DeFindex vault deposit/withdraw/APY | ✅ Shipped |
-| P1 | Email + passkey auth via Privy | 🚧 In progress |
-| P1 | OpenZeppelin Smart Account deployment (Soroban/Rust) | 🚧 In progress |
-| P2 | Live Stellar testnet settlement (currently simulated) | 📋 Planned |
-| P2 | WebSocket real-time dashboard updates | 📋 Planned |
-| P3 | Multi-agent portfolio coordination | 📋 Planned |
+| Priority | Feature                                              | Status     |
+| -------- | ---------------------------------------------------- | ---------- |
+| P0       | x402 + MPP gateway with all 8 endpoints              | ✅ Shipped |
+| P0       | Next.js dashboard (Home, Portfolio, Limits)          | ✅ Shipped |
+| P0       | Soroswap 4-protocol swap aggregation                 | ✅ Shipped |
+| P0       | DeFindex vault deposit/withdraw/APY                  | ✅ Shipped |
+| P1       | Email + passkey auth via Privy                       | ✅ Shipped |
+| P1       | OpenZeppelin Smart Account deployment (Soroban/Rust) | ✅ Shipped |
+| P2       | Live Stellar testnet settlement                      | ✅ Shipped |
+| P2       | WebSocket real-time dashboard updates                | 📋 Planned |
+| P3       | Multi-agent portfolio coordination                   | 📋 Planned |
 
 ---
 
@@ -350,9 +350,9 @@ All errors follow a consistent shape:
 1. **Operator signs in** with email + Face ID. No extensions, no seed phrases.
 2. **Funds agent** with $100 USDC. Sets daily cap to $10, enables Trade + Savings.
 3. **Agent discovers** endpoints via `GET /health`. Pays $0.001, gets swap quote. Pays $0.002, executes USDC→XLM trade.
-4. **Agent deposits** $50 idle USDC into savings vault. Dashboard shows: *"Moved $50.00 to savings · 5.2%/yr"*
-5. **Yield accrues.** Operator sees home screen: Earned **+$0.07**, Costs **-$0.0045**. Chart turns green. Badge: *"Self-sustaining ↗"*
-6. **Guard rails fire.** Agent attempts $15 trade — exceeds $10 cap. Dashboard: *"Daily cap reached · Resets in 14h"*. Agent pauses cleanly.
+4. **Agent deposits** $50 idle USDC into savings vault. Dashboard shows: _"Moved $50.00 to savings · 5.2%/yr"_
+5. **Yield accrues.** Operator sees home screen: Earned **+$0.07**, Costs **-$0.0045**. Chart turns green. Badge: _"Self-sustaining ↗"_
+6. **Guard rails fire.** Agent attempts $15 trade — exceeds $10 cap. Dashboard: _"Daily cap reached · Resets in 14h"_. Agent pauses cleanly.
 
 ---
 
