@@ -360,7 +360,7 @@ All errors follow a consistent shape:
 
 Issues and PRs welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before submitting.
 
-Built for [Stellar Hacks: Agents](https://dorahacks.io/hackathon/stellar-hacks-agents) · [Drips Stellar Wave 3](https://drips.network)
+Built for [Stellar Hacks: Agents](https://dorahacks.io/hackathon/stellar-hacks-agents)
 
 ---
 
